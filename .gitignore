@@ -1,0 +1,14 @@
+# Carpeta de compilación del proyecto.
+# ¡Esta es la línea más importante!
+build/
+
+# Archivos de configuración de Visual Studio
+.vs/
+*.VC.db
+*.VC.db.backup
+*.suo
+*.user
+*.sln.docstates
+
+# Archivos generados por Windows
+Thumbs.db
