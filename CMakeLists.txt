@@ -13,8 +13,8 @@ find_package(OpenCV REQUIRED)
 # --- Encontrar ITK ---
 # Le damos a CMake una PISTA de dónde está tu carpeta 'itk_build'
 # Esta es la carpeta que CONTIENE el archivo "ITKConfig.cmake"
-set(ITK_DIR "C:/dev/ITK/itk_build") 
-find_package(ITK REQUIRED)
+set(ITK_DIR "C:/Program Files/ITK")
+find_package(ITK REQUIRED COMPONENTS ITKOpenCVImageBridge)
 
 # --- Configurar el Proyecto ---
 # Le decimos a CMake que busque los archivos .h de las librerías

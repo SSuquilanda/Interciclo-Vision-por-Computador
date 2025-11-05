@@ -7,7 +7,7 @@
 #include "itkRescaleIntensityImageFilter.h" // Para escalar la imagen para verla
 
 // --- Cabecera del PUENTE ---
-#include "itkOpenCVImageBridge.h" 
+#include "itkOpenCVImageBridge.h"
 
 // --- Cabeceras de OpenCV ---
 #include "opencv2/core.hpp"
@@ -22,8 +22,12 @@ int main() {
     using PixelType = short; // píxel de 16-bit
     using ImageType = itk::Image<PixelType, Dimension>;
 
-    // Nombre del archivo a leer (¡pon tu archivo .IMA aquí!)
-    std::string inFileName = "test.IMA";
+    // -----------------------------------------------------------------
+    // ¡¡CAMBIO CLAVE AQUÍ!!
+    // -----------------------------------------------------------------
+    // Le decimos al programa que busque la imagen en la carpeta 'data/'
+    // El "../" significa "subir un nivel" (desde build/Release hasta la raíz)
+    std::string inFileName = "../../data/L506_QD_3_1.CT.0003.0100.2015.12.22.20.45.42.541197.358793121.IMA";
 
     // --- 2. Leer la imagen con ITK ---
     using ReaderType = itk::ImageFileReader<ImageType>;
@@ -44,8 +48,6 @@ int main() {
     ImageType::Pointer itkImage = reader->GetOutput();
 
     // --- 3. Convertir de ITK a cv::Mat usando el Bridge ---
-    // ITKImageToCVMat usa 'const' por defecto, por eso usamos 'false'
-    // para obtener una copia modificable si quisiéramos.
     std::cout << "Convirtiendo imagen a cv::Mat..." << std::endl;
     cv::Mat cvImage;
     try {
@@ -58,10 +60,8 @@ int main() {
         return EXIT_FAILURE;
     }
 
-
     // --- 4. Procesar y Mostrar con OpenCV ---
-    // Las imágenes DICOM (16-bit) no se pueden mostrar directamente.
-    // Necesitamos normalizarlas a 8-bit (0-255).
+    // Normalizamos la imagen de 16-bit (0-65535) a 8-bit (0-255)
     cv::Mat cvImage8bit;
     cv::normalize(cvImage, cvImage8bit, 0, 255, cv::NORM_MINMAX, CV_8U);
 
