@@ -2,6 +2,8 @@ build/
 
 data/
 
+build_cpu/
+
 .vs/
 *.VC.db
 *.VC.db.backup
