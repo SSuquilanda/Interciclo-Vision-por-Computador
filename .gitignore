@@ -1,8 +1,7 @@
-# Carpeta de compilación del proyecto.
-# ¡Esta es la línea más importante!
 build/
 
-# Archivos de configuración de Visual Studio
+data/
+
 .vs/
 *.VC.db
 *.VC.db.backup
