@@ -5,6 +5,7 @@
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkRescaleIntensityImageFilter.h" // Para escalar la imagen para verla
+#include "itkGDCMImageIOFactory.h"
 
 // --- Cabecera del PUENTE ---
 #include "itkOpenCVImageBridge.h"
@@ -17,10 +18,13 @@
 
 int main() {
     // --- 1. Definir tipos de imagen en ITK ---
+    itk::GDCMImageIOFactory::RegisterOneFactory();
     // Las imágenes DICOM suelen ser 16-bit (short). Ajusta esto si es necesario.
     const unsigned int Dimension = 2; // Estamos leyendo un slice 2D
     using PixelType = short; // píxel de 16-bit
     using ImageType = itk::Image<PixelType, Dimension>;
+    // Define el TIPO de "puente" para tu tipo de imagen
+    
 
     // -----------------------------------------------------------------
     // ¡¡CAMBIO CLAVE AQUÍ!!
@@ -52,7 +56,9 @@ int main() {
     cv::Mat cvImage;
     try {
         // ¡La función mágica!
-        cvImage = itk::OpenCVImageBridge::ITKImageToCVMat(itkImage, false);
+        // El código (Correcto)
+        // CORRECTO
+        cvImage = itk::OpenCVImageBridge::ITKImageToCVMat<ImageType>(itkImage.GetPointer(), false);
     }
     catch (const itk::ExceptionObject& ex) {
         std::cerr << "Excepcion al convertir la imagen: " << std::endl;

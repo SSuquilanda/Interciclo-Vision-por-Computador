@@ -7,14 +7,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # --- Encontrar OpenCV ---
 # Le damos a CMake una PISTA de dónde está tu carpeta 'build' de OpenCV
 # Esta es la carpeta que CONTIENE el archivo "OpenCVConfig.cmake"
-set(OpenCV_DIR "C:/dev/opencv/build")
+set(OpenCV_DIR "C:/dev/opencv/build_cpu")
 find_package(OpenCV REQUIRED)
 
 # --- Encontrar ITK ---
 # Le damos a CMake una PISTA de dónde está tu carpeta 'itk_build'
 # Esta es la carpeta que CONTIENE el archivo "ITKConfig.cmake"
 set(ITK_DIR "C:/Program Files/ITK")
-find_package(ITK REQUIRED COMPONENTS ITKOpenCVImageBridge)
+find_package(ITK REQUIRED COMPONENTS ITKVideoBridgeOpenCV ITKIOGDCM)
 
 # --- Configurar el Proyecto ---
 # Le decimos a CMake que busque los archivos .h de las librerías
