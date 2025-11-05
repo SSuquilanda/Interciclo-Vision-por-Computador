@@ -7,12 +7,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # --- Configuración de rutas según sistema operativo ---
 if(WIN32)
     # Rutas de Sami (Windows)
-    message(STATUS "🪟 Configurando para Windows (Sami)")
+    message(STATUS "Configurando para Windows (Sami)")
     set(OpenCV_DIR "C:/dev/opencv/build_cpu")
     set(ITK_DIR "C:/Program Files/ITK")
 else()
     # Rutas de Felipe (Linux)
-    message(STATUS "🐧 Configurando para Linux (Felipe)")
+    message(STATUS "Configurando para Linux (Felipe)")
     # OpenCV_DIR debe apuntar a la carpeta que contiene OpenCVConfig.cmake
     set(OpenCV_DIR "/home/felipep/Documentos/universidad/universidad 7mo/vision por computador/opencv-dev/install/lib/cmake/opencv4")
     # ITK_DIR debe apuntar a la carpeta build de ITK que contiene ITKConfig.cmake
@@ -22,18 +22,18 @@ endif()
 # --- Buscar paquetes ---
 find_package(OpenCV REQUIRED)
 if(OpenCV_FOUND)
-    message(STATUS "✅ OpenCV encontrado: ${OpenCV_VERSION}")
+    message(STATUS "OpenCV encontrado: ${OpenCV_VERSION}")
     message(STATUS "   OpenCV_INCLUDE_DIRS: ${OpenCV_INCLUDE_DIRS}")
 else()
-    message(FATAL_ERROR "❌ OpenCV no encontrado")
+    message(FATAL_ERROR "OpenCV no encontrado")
 endif()
 
 find_package(ITK REQUIRED COMPONENTS ITKCommon ITKIOImageBase ITKIOGDCM ITKVideoBridgeOpenCV)
 if(ITK_FOUND)
-    message(STATUS "✅ ITK encontrado: ${ITK_VERSION}")
+    message(STATUS "ITK encontrado: ${ITK_VERSION}")
     include(${ITK_USE_FILE})
 else()
-    message(FATAL_ERROR "❌ ITK no encontrado")
+    message(FATAL_ERROR "ITK no encontrado")
 endif()
 
 # --- Buscar GStreamer (solo en Linux, requerido por OpenCV) ---
@@ -46,7 +46,7 @@ if(UNIX AND NOT APPLE)
         gstreamer-app-1.0
     )
     if(GST_FOUND)
-        message(STATUS "✅ GStreamer encontrado: ${GST_VERSION}")
+        message(STATUS "GStreamer encontrado: ${GST_VERSION}")
     endif()
 endif()
 
@@ -82,7 +82,7 @@ endif()
 
 # --- Información de compilación ---
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-message(STATUS "📦 Configuración del proyecto completada")
+message(STATUS "Configuración del proyecto completada")
 message(STATUS "   Sistema: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "   Compilador: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "   Ejecutable: MyApp")
