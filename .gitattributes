@@ -1,0 +1,5 @@
+*.IMA filter=lfs diff=lfs merge=lfs -text
+*.dcm filter=lfs diff=lfs merge=lfs -text
+*.nii filter=lfs diff=lfs merge=lfs -text
+*.onnx filter=lfs diff=lfs merge=lfs -text
+*.pb filter=lfs diff=lfs merge=lfs -text
