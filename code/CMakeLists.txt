@@ -54,6 +54,10 @@ endif()
 # --- Incluir directorios ---
 include_directories(${OpenCV_INCLUDE_DIRS})
 
+# Inyectar la ruta del proyecto como macro para C++
+add_definitions(-DPROJECT_SOURCE_DIR=${CMAKE_SOURCE_DIR})
+
+
 # --- Crear ejecutable ---
 add_executable(MyApp src/main.cpp)
 
