@@ -33,8 +33,8 @@
 
 - [X] Descargar dataset "CT Low Dose Reconstruction" desde Kaggle
 - [X] Verificar que el dataset esté en `intercilo01/archive/`
-- [ ] Seleccionar un paciente único (diferente al de otros grupos)
-- [ ] Explorar la estructura de carpetas del dataset:
+- [X] Seleccionar un paciente único (diferente al de otros grupos)
+- [X] Explorar la estructura de carpetas del dataset:
   - Full Dose / Quarter Dose
   - 1mm / 3mm Slice Thickness
   - Sharp Kernel (D45) / Soft Kernel (B30)
@@ -57,20 +57,24 @@
 
 ### 2.1 Implementación de Lectura DICOM con ITK
 
-- [ ] Crear función para leer archivos DICOM (.IMA) usando ITK
-- [ ] Implementar `itkImageFileReader` para cargar imágenes
-- [ ] Convertir imágenes ITK a formato OpenCV usando `itkOpenCVImageBridge`
-- [ ] Mostrar información básica de la imagen:
+- [X] Crear función para leer archivos DICOM (.IMA) usando ITK
+- [X] Implementar `itkImageFileReader` para cargar imágenes
+- [X] Convertir imágenes ITK a formato OpenCV usando `itkOpenCVImageBridge`
+- [X] Mostrar información básica de la imagen:
   - Dimensiones
   - Rango de valores (min/max HU)
   - Metadata DICOM
+- [X] **REFACTORIZACIÓN:** Código organizado en módulos:
+  - `f2_io/dicom_reader` - Lectura y metadata DICOM
+  - `utils/itk_opencv_bridge` - Conversión ITK ↔ OpenCV
+  - `f6_visualization/visualization` - Visualización e histogramas
 
 ### 2.2 Exploración del Dataset
 
-- [ ] Cargar y visualizar diferentes slices del paciente seleccionado
+- [X] Cargar y visualizar diferentes slices del paciente seleccionado
 - [ ] Analizar las diferencias entre Full Dose y Quarter Dose
 - [ ] Identificar slices representativos para el análisis (ej: slice 100)
-- [ ] Guardar estadísticas básicas (media, desviación estándar, histograma)
+- [X] Guardar estadísticas básicas (media, desviación estándar, histograma)
 
 ---
 

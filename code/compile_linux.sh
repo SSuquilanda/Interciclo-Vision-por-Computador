@@ -2,9 +2,7 @@
 
 # Script de compilación para Linux
 
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║  Compilando Proyecto Interciclo (Linux)                   ║"
-echo "╚════════════════════════════════════════════════════════════╝"
+echo "Compilando Proyecto"
 echo ""
 
 # Crear directorio build si no existe
@@ -31,10 +29,7 @@ echo "Compilando..."
 make || { echo "Error en la compilación"; exit 1; }
 
 # Ejecutar si la compilación fue exitosa
-echo ""
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║  Compilación exitosa - Ejecutando programa...             ║"
-echo "╚════════════════════════════════════════════════════════════╝"
+echo "Compilación exitosa - Ejecutando programa..."
 echo ""
 
 ./MyApp
