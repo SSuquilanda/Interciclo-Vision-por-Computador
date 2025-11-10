@@ -24,15 +24,15 @@
 
 ### 1.1 Configuración del Entorno
 
-- [ ] Verificar que ITK esté correctamente instalado
-- [ ] Verificar que OpenCV C++ esté correctamente instalado
-- [ ] Probar compilación del proyecto base en `codigo/`
-- [ ] Crear carpeta de trabajo dentro de `codigo/` para organizar el proyecto
+- [X] Verificar que ITK esté correctamente instalado
+- [X] Verificar que OpenCV C++ esté correctamente instalado
+- [X] Probar compilación del proyecto base en `codigo/`
+- [X] Crear carpeta de trabajo dentro de `codigo/` para organizar el proyecto
 
 ### 1.2 Obtención del Dataset
 
-- [ ] Descargar dataset "CT Low Dose Reconstruction" desde Kaggle
-- [ ] Verificar que el dataset esté en `intercilo01/archive/`
+- [X] Descargar dataset "CT Low Dose Reconstruction" desde Kaggle
+- [X] Verificar que el dataset esté en `intercilo01/archive/`
 - [ ] Seleccionar un paciente único (diferente al de otros grupos)
 - [ ] Explorar la estructura de carpetas del dataset:
   - Full Dose / Quarter Dose
