@@ -10,6 +10,7 @@ if(WIN32)
     message(STATUS "Configurando para Windows (Sami)")
     set(OpenCV_DIR "C:/dev/opencv/build_cpu")
     set(ITK_DIR "C:/Program Files/ITK")
+    set(CMAKE_CONFIGURATION_TYPES "Release")
 else()
     # Rutas de Felipe (Linux)
     message(STATUS "Configurando para Linux (Felipe)")
@@ -52,6 +53,10 @@ endif()
 
 # --- Incluir directorios ---
 include_directories(${OpenCV_INCLUDE_DIRS})
+
+# Inyectar la ruta del proyecto como macro para C++
+add_definitions(-DPROJECT_SOURCE_DIR=${CMAKE_SOURCE_DIR})
+
 
 # --- Crear ejecutable ---
 add_executable(MyApp src/main.cpp)
