@@ -65,21 +65,21 @@ set(COMMON_SOURCES
     src/f6_visualization/visualization.cpp
 )
 
-# Crear ejecutable principal
-add_executable(MyApp src/main.cpp ${COMMON_SOURCES})
+# Crear ejecutable para exportación de slices (Fase 2.1)
+add_executable(ExportSlices src/export_slices.cpp ${COMMON_SOURCES})
 
-# Crear ejecutable para exploración del dataset
+# Crear ejecutable para exploración del dataset (Fase 2.2)
 add_executable(ExploreDataset src/explore_dataset.cpp ${COMMON_SOURCES})
 
 # Enlazar bibliotecas para ambos ejecutables
 if(UNIX AND NOT APPLE)
     # Incluir GStreamer en Linux
-    target_link_libraries(MyApp PRIVATE
+    target_link_libraries(ExportSlices PRIVATE
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
         ${GST_LIBRARIES}
     )
-    target_include_directories(MyApp PRIVATE ${GST_INCLUDE_DIRS})
+    target_include_directories(ExportSlices PRIVATE ${GST_INCLUDE_DIRS})
     
     target_link_libraries(ExploreDataset PRIVATE
         ${OpenCV_LIBS}
@@ -89,7 +89,7 @@ if(UNIX AND NOT APPLE)
     target_include_directories(ExploreDataset PRIVATE ${GST_INCLUDE_DIRS})
 else()
     # OpenCV e ITK en Windows
-    target_link_libraries(MyApp PRIVATE
+    target_link_libraries(ExportSlices PRIVATE
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
     )
@@ -102,13 +102,13 @@ endif()
 
 # Habilitar warnings para ambos ejecutables
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(MyApp PRIVATE -Wall -Wextra)
+    target_compile_options(ExportSlices PRIVATE -Wall -Wextra)
     target_compile_options(ExploreDataset PRIVATE -Wall -Wextra)
 elseif(MSVC)
-    target_compile_options(MyApp PRIVATE /W4)
+    target_compile_options(ExportSlices PRIVATE /W4)
     target_compile_options(ExploreDataset PRIVATE /W4)
 endif()
 
 message(STATUS "   Sistema: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "   Compilador: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
-message(STATUS "   Ejecutables: MyApp, ExploreDataset")
+message(STATUS "   Ejecutables: ExportSlices, ExploreDataset")
