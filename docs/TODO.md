@@ -72,9 +72,15 @@
 ### 2.2 Exploración del Dataset
 
 - [X] Cargar y visualizar diferentes slices del paciente seleccionado
-- [ ] Analizar las diferencias entre Full Dose y Quarter Dose
-- [ ] Identificar slices representativos para el análisis (ej: slice 100)
+- [X] Analizar las diferencias entre Full Dose y Quarter Dose
+- [X] Identificar slices representativos para el análisis (ej: slice 100)
 - [X] Guardar estadísticas básicas (media, desviación estándar, histograma)
+- [X] **HERRAMIENTA:** Creado `ExploreDataset` - programa interactivo para:
+  - Comparación visual lado a lado FD vs QD
+  - Cálculo de PSNR, SNR y estadísticas completas
+  - Identificación automática de slices representativos
+  - Generación de reporte CSV detallado
+  - Navegación interactiva entre slices
 
 ---
 

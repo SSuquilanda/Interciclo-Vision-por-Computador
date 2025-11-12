@@ -1,4 +1,4 @@
-```
+```bash
 Computación Docente: Vladimir Robles Bykbaev
 VISIÓN ARTIFICIAL Período Lectivo: Febrero 2026 Octubre 2025 –
 ```
@@ -29,17 +29,17 @@ aprendizaje de máquina a fin de realizar tareas de reconocimiento de patrones.
     planteada.
 **ASIGNATURAS Y CONOCIMIENTOS RELACIONADOS AL PROYECTO INTEGRADOR**
 
-```
+```bash
 Asignatura Contenido de la materia
 ```
 
-```
+```bash
 Contenido al que aporta de la
 asignatura de Visión por Computador
 o requerimentos del Proyecto
 ```
 
-```
+```bash
 Porcentaje de
 aporte al
 proyecto
@@ -49,7 +49,7 @@ proyecto
 Matrices (operaciones con
 matrices)
 
-```
+```bash
 Operaciones sobre grupos de puntos de
 la imagen (convolución, filtro de la
 media, filtro de la mediana, filtro
@@ -61,7 +61,7 @@ Operaciones morfológicas. HOG.
 
 Cálculo Diferencial La derivada
 
-```
+```bash
 Detección de Bordes (Operadores
 Básicos, Prewitt, Sobel, Laplaciano,
 Canny)
@@ -71,19 +71,19 @@ Canny)
 
 Estadística
 
-```
+```bash
 Introducción a la
 estadística y conjuntos
 ```
 
-```
+```bash
 Probabilidad Variables
 aleatorias y
 distribuciones de
 probabilidad
 ```
 
-```
+```bash
 Ecualización de Histograma 25%
 ```
 
@@ -102,7 +102,7 @@ con aprendizaje profundo.
 Visión por
 Computador
 
-```
+```bash
 Espacios de Color
 Operaciones sobre los puntos de
 la imagen
@@ -115,7 +115,7 @@ Cascadas de Haar
 
 ### N/A N/A
 
-```
+```bash
 Resolución CS N° 076-04-2016-04-
 ```
 
@@ -180,16 +180,16 @@ tecnológicamente actualizadas y comunicativas.
 
 ## ▪ Debe desarrollar una aplicación de escritorio usando OpenCV C++ que permita procesar extraer
 
-```
+```bash
 imágenes (slices) de archivos de CT Scan (computed tomography) (formato IMA – DICOM). Para
 ```
 
-```
+```bash
 Computación Docente: Vladimir Robles Bykbaev
 VISIÓN ARTIFICIAL Período Lectivo: Febrero 2026 Octubre 2025 –
 ```
 
-```
+```bash
 ello, deberá seleccionar un conjunto de imágenes médicas (desde KAGGLE) único por grupo. El
 dataset que debe emplear es CT Low Dose Reconstruction. Con esta información, deberá
 extraer los cortes (slices) y resaltar las áreas de interés en las imágenes extraídas empleando la
@@ -202,7 +202,7 @@ librería de acceso abierto ITK:
 
 ## ▪ Un ejemplo del proceso a seguir se observa en la Ilustración 1. Tome en cuenta que esta es la
 
-```
+```bash
 línea base y deberá diseñar su propio proceso, indicando qué técnicas aplicó para separar
 determinadas áreas en función del corte de la imagen para ello se sugiere consulte con un
 radiólogo (slice):
@@ -216,29 +216,29 @@ radiólogo (slice):
 
 ## ▪ Un ejemplo del resultado que se obtiene al extraer los cortes se puede apreciar en la Tabla 1
 
-```
+```bash
 Recuerde que una imagen de CT puede contener cientos de cortes (slices), sin embargo, para el
 dataset seleccionado, principalmente contiene solo 1 corte por archivo.
 ```
 
-```
+```bash
 Resolución CS N° 076-04-2016-04-
 ```
 
-```
+```bash
 Slice del archivo
 L067_QD_3_SHARP_1.CT.0003.0001.2016.01.21.18.12.01.
 1560.405032914.IMA
 ```
 
-```
+```bash
 Detección de la zona de las estructuras óseas del Slice del
 archivo
 L067_QD_3_SHARP_1.CT.0003.0001.2016.01.21.18.12.01.
 1560.405032914.IMA
 ```
 
-```
+```bash
 Resaltado de las estructuras óseas del Slice del archivo con ajuste de parámetros de Double threshold e histérisis
 L067_QD_3_SHARP_1.CT.0003.0001.2016.01.21.18.12.01.921560.405032914.IMA
 ```
@@ -247,16 +247,16 @@ _Tabla 1 : Ejemplo de dos imágenes extraídas de la imagen de CT
 L067_QD_3_SHARP_1.CT.0003.0001.2016.01.21.18.12.01.921560.405032914.IMA del dataset "CT Low Dose Reconstruction"
 (URL: <https://www.kaggle.com/datasets/andrewmvd/ct-low-dose-reconstruction/data>)_
 
-```
+```bash
 ▪ Con las imágenes (tanto el corte como la segmentación), deberá aplicar operaciones que permitan
 ```
 
-```
+```bash
 Computación Docente: Vladimir Robles Bykbaev
 VISIÓN ARTIFICIAL Período Lectivo: Febrero 2026 Octubre 2025 –
 ```
 
-```
+```bash
 resaltar dicha área (por ejemplo, incremento de contraste, operaciones morfológicas, máscaras de
 resaltado de color, etc.). Para ello deberá consultar fuentes médicas y definir qué operaciones de
 resaltado va a emplear, como se puede apreciar en la Ilustración 1.
@@ -272,41 +272,41 @@ resaltado va a emplear, como se puede apreciar en la Ilustración 1.
 
 ## ▪ Los aspectos y funcionalidades con los que debe contar el proyecto desarrollado son los que se
 
-```
+```bash
 indican seguidamente.
 ```
 
 ## • La aplicación de escritorio permitirá seleccionar el corte de cualquier imagen contenida en la
 
-```
+```bash
 carpeta y generará una imagen donde se resalte el área de interés para cada corte, mostrando
 las operaciones intermedias realizadas.
 Resolución CS N° 076-04-2016-04-
 ```
 
-```
+```bash
 Insight Toolkit
 ```
 
-```
+```bash
 CT Scan Imaging
 ```
 
-```
+```bash
 NII Images
 ```
 
-```
+```bash
 Corte de la imagen
 DICOM
 ```
 
-```
+```bash
 Obtención ROI imagen
 DICOM
 ```
 
-```
+```bash
 Módulo de
 procesamiento
 PDI
@@ -321,17 +321,17 @@ PDI
 - Reducción ruido (métodos
 tradicionales y DNN**
 
-```
+```bash
 Zona de interés
 resaltada para
 análisis médico
 ```
 
-```
+```bash
 DICOM Images
 ```
 
-```
+```bash
 Reducción de ruido
 técnicas tradicionales y
 Deep Learning
@@ -344,7 +344,7 @@ Deep Learning
 - Las operaciones para obtener las áreas de interés, máscaras, etc. deberán estar sustentadas
     en un proceso lógico que permita mejorar el proceso de análisis para médicos y/o radiólogos.
 
-```
+```bash
 ▪ Las técnicas de visión artificial que deben emplearse en el pre-procesamiento tanto en el
 dispositivo móvil como en el servidor web:
 ```
@@ -410,13 +410,13 @@ zonas de interés *****
 
 ### 10% 35 %
 
-```
+```bash
 Total (sobre 100%) 75% 10 0%
 ```
 
 ***Este criterio tiene una ponderación distinta para el tipo de implementación que se realice. Si desarrolla la opción para**
 
-```
+```bash
 Computación Docente: Vladimir Robles Bykbaev
 VISIÓN ARTIFICIAL Período Lectivo: Febrero 2026 Octubre 2025 –
 ```
@@ -454,7 +454,7 @@ una manera clara y concisa
 
 ### 20 %
 
-```
+```bash
 Total 100% Total
 ```
 
@@ -462,19 +462,19 @@ Total 100% Total
 
 ## ▪ Debe implementar un detector de personas/peatones usando técnicas clásicas (HOG + SVM o LBP
 
-```
+```bash
 + Cascadas de Haar o métodos similares) en una aplicación de escritorio con OpenCV C++.
 ```
 
 ## ▪ Cuando se detecta una persona, la aplicación debe enviar la imagen y vídeo capturado a un Bot de
 
-```
+```bash
 Telegram.
 ```
 
 ## ▪ El Bot debe usar una red de detección de postura humana (mediante PyTorch y modelos como
 
-```
+```bash
 OpenPose, MMPose o similares) para analizar la postura de todas las personas en la imagen.
 ```
 
@@ -490,17 +490,17 @@ OpenPose, MMPose o similares) para analizar la postura de todas las personas en 
 
 ## • La aplicación de escritorio (OpenCV C++) debe detectar personas o peatones en vídeos
 
-```
+```bash
 capturados desde una cámara web HOG + SVM, LBP + Cascadas de Haar
 ( opencv_traincascade ) o un enfoque similar, de forma que se pueda detectar el área donde
 está la persona, como se indica en la Ilustración 3.
 ```
 
-```
+```bash
 Resolución CS N° 076-04-2016-04-
 ```
 
-```
+```bash
 Ilustración 3 : Ejemplo de una imagen donde se detecta peatones con técnicas como
 ```
 
@@ -524,41 +524,41 @@ Ilustración 3 : Ejemplo de una imagen donde se detecta peatones con técnicas c
 
 ## • Deberá implementar un detector de objetos en un bot de Telegram usando mediante PyTorch y
 
-```
+```bash
 modelos como OpenPose, MMPose o similares.
 ```
 
 ## • El Bot realiza el proceso de detección cuando recibe la información de la aplicación de
 
-```
+```bash
 escritorio (desarrollada en OpenCV C++).
 ```
 
 ## • El Bot de Telegram se puede programar en Python, y debe enviar la notificación de detección
 
-```
+```bash
 de postura humana a un número de celular (o cuenta de Telegram) del usuario registrado.
 ```
 
 ## • Asimismo, el Bot enviará al usuario de Telegram dos fotos (original y con los puntos
 
-```
+```bash
 detectados) y un vídeo corto de al menos 5 segundos de la persona o peatón con movimiento y
 la detección de puntos de la postura (Ilustración 4).
 ```
 
-```
+```bash
 Computación Docente: Vladimir Robles Bykbaev
 VISIÓN ARTIFICIAL Período Lectivo: Febrero 2026 Octubre 2025 –
 ```
 
-```
+```bash
 Ilustración 4 : Ejemplo de detección de la postura humana en diferentes
 fuentes de vídeo usando OpenPose. Fuente:
 https://blog.roboflow.com/what-is-openpose/
 ```
 
-```
+```bash
 ▪ Aspectos generales a tomar en consideración:
 ```
 
@@ -618,7 +618,7 @@ imágenes o una sola imagen (10%) que se envía a procesar al bot de Telegram **
 
 ### 10% 35 %
 
-```
+```bash
 Total (sobre 100%) 75% 10 0%
 ```
 
@@ -630,22 +630,22 @@ por aplicar una alternativa en caso de no lograr capturar vídeo.**
 **RÚBRICA DE EVALUACIÓN PARA EL INFORME PARTE II FINAL (5 puntos):**
 A continuación se especifican los criterios de evaluación:
 
-```
+```bash
 Video – Blog en inglés (Sobre 4 Puntos)
 ```
 
-```
+```bash
 Criterio Ponderación
 ```
 
-```
+```bash
 El informe incluye una descripción detallada del trabajo realizado (introducción, descripción
 del problema, propuesta de solución, conclusiones, bibliografía)
 ```
 
 ### 30%
 
-```
+```bash
 El informe incorpora un análisis detallado de los resultados obtenidos con las técnicas tanto
 LBP o HOG y la Red Neuronal de Aprendizaje Profundo se incluye:
 ```
@@ -658,25 +658,25 @@ LBP o HOG y la Red Neuronal de Aprendizaje Profundo se incluye:
 
 ### 30%
 
-```
+```bash
 El informe está correctamente redactado, contiene citas a papers y un esquema explicativo
 de la solución planteada
 ```
 
 ### 20 %
 
-```
+```bash
 El vídeo en inglés sigue un guion donde se explican los principales aspectos del proyecto de
 una manera clara y concisa
 ```
 
 ### 20 %
 
-```
+```bash
 Total 100%
 ```
 
-```
+```bash
 Computación Docente: Vladimir Robles Bykbaev
 VISIÓN ARTIFICIAL Período Lectivo: Febrero 2026 Octubre 2025 –
 ```
@@ -742,7 +742,7 @@ patrones.**
     reconocimiento de patrones en el dominio del espacio. La detección de postura con deep learning es una
        **Resolución CS N° 076-04-2016-04-**
 
-```
+```bash
 extensión moderna de este concepto, donde el descriptor es una representación de alto nivel aprendida por
 la red.
 ```
@@ -760,7 +760,7 @@ Resultados de Aprendizaje de la asignatura. Las conclusiones específicas son la
 
 ## 1. Comprendieron la formación y adquisición de imágenes en contextos reales : Los estudiantes
 
-```
+```bash
 identificaron las diferencias entre imágenes médicas (DICOM/NIfTI) y de vigilancia (video en tiempo real),
 comprendiendo los elementos físicos y digitales involucrados en su captura y representación. Esta
 habilidad les permite elegir adecuadamente los formatos y espacios de color para cualquier aplicación
@@ -769,7 +769,7 @@ futura.
 
 ## 2. Dominaron las técnicas de preprocesamiento y manipulación de imágenes : A través de la
 
-```
+```bash
 implementación de filtros, operaciones morfológicas y detección de bordes, los estudiantes no solo
 aprendieron a aplicar estos algoritmos, sino también a evaluar su impacto cuantitativo y cualitativo en la
 calidad de la imagen, lo cual es crucial para tareas de análisis médico y seguridad.
@@ -777,7 +777,7 @@ calidad de la imagen, lo cual es crucial para tareas de análisis médico y segu
 
 ## 3. Aplicaron con éxito la extracción de características globales y locales : La combinación de HOG
 
-```
+```bash
 (característica global) para la detección de personas y la extracción de puntos clave (características
 locales) para la detección de postura humana les permitió entender la diferencia entre ambos tipos de
 descriptores y seleccionar el más adecuado para cada problema, fortaleciendo su capacidad de diseño de
@@ -786,7 +786,7 @@ sistemas de visión.
 
 ## 4. Implementaron sistemas de reconocimiento de patrones modernos y tradicionales : El proyecto les
 
-```
+```bash
 permitió experimentar con dos paradigmas: el clásico (HOG+SVM, LBP+Cascades) y el moderno (deep
 learning con PyTorch). Esto les proporciona una perspectiva histórica y actualizada del campo,
 preparándolos para trabajar en entornos donde ambas tecnologías coexisten.
@@ -794,7 +794,7 @@ preparándolos para trabajar en entornos donde ambas tecnologías coexisten.
 
 ## 5. Desarrollaron habilidades transversales de ingeniería de software y comunicación : La integración de
 
-```
+```bash
 múltiples componentes (OpenCV C++, Flask, PyTorch, Telegram Bot API) y la obligatoriedad de generar un
 informe técnico y un vídeo-blog en inglés les enseñó a trabajar en proyectos multidisciplinarios, gestionar
 dependencias, documentar su trabajo y comunicar sus hallazgos de manera efectiva.
@@ -802,7 +802,7 @@ dependencias, documentar su trabajo y comunicar sus hallazgos de manera efectiva
 
 ## 6. Conectaron la teoría con la práctica en campos críticos : Al enfocarse en diagnóstico médico y
 
-```
+```bash
 seguridad, los estudiantes apreciaron el impacto social y profesional de la visión por computador,
 motivándolos a seguir profundizando en el área y a considerarla como una herramienta poderosa para
 resolver problemas reales.
@@ -814,7 +814,7 @@ resolver problemas reales.
 
 ## 1. Planificar con anticipación las etapas del proyecto : Dado que el proyecto está dividido en dos fases
 
-```
+```bash
 (Interciclo y final), los estudiantes deben definir un cronograma de trabajo claro. Asegúrate de realizar
 pruebas previas al día de la presentación y configurar correctamente la red en la UPS o traer tu propio
 router para evitar problemas de conectividad.
@@ -822,17 +822,17 @@ router para evitar problemas de conectividad.
 
 ## 2. Investigar y probar nuevas técnicas de visión artificial : Además de las técnicas vistas en clase
 
-```
+```bash
 (ecualización de histograma, operaciones morfológicas, etc.), es fundamental que los estudiantes
 investiguen y apliquen nuevas técnicas no contempladas en el material. Esta iniciativa será valorada
 ```
 
-```
+```bash
 Computación Docente: Vladimir Robles Bykbaev
 VISIÓN ARTIFICIAL Período Lectivo: Febrero 2026 Octubre 2025 –
 ```
 
-```
+```bash
 positivamente.
 ```
 
@@ -840,7 +840,7 @@ positivamente.
 
 ## 3. Proporcionar soporte técnico continuo : Se recomienda que el docente ofrezca sesiones adicionales de
 
-```
+```bash
 asesoría, donde los estudiantes puedan resolver dudas sobre la configuración de la librería ITK. También
 podría proporcionar guías o ejemplos adicionales relacionados con las técnicas avanzadas de
 procesamiento de imágenes.
@@ -848,7 +848,7 @@ procesamiento de imágenes.
 
 ## 4. Facilitar recursos de infraestructura : Durante las fases de prueba y presentación en vivo, podría ser
 
-```
+```bash
 beneficioso que el docente coordine con el equipo de TI para garantizar que los estudiantes tengan acceso
 a redes Wi-Fi estables y funcionales, especialmente para proyectos que requieran transmisión de datos.
 ```
@@ -857,7 +857,7 @@ a redes Wi-Fi estables y funcionales, especialmente para proyectos que requieran
 
 ## 5. Asignar recursos para capacitación técnica : Se sugiere que la Dirección de Carrera organice talleres
 
-```
+```bash
 previos al inicio del ciclo, enfocados en el uso de software de Procesamiento Digital de Imágenes médicas
 y el manejo avanzado de librerías de C++ y Python para visión artificial. Esto permitirá que los estudiantes
 lleguen mejor preparados a la asignatura.
@@ -866,14 +866,14 @@ lleguen mejor preparados a la asignatura.
 Estas recomendaciones buscan asegurar que tanto estudiantes como docentes y la administración tengan las
 herramientas y el soporte necesario para completar el proyecto de manera efectiva y sin contratiempos.
 
-```
+```bash
 Docente / Técnico Docente : Ing. Vladimir Robles Bykbaev
 ```
 
-```
+```bash
 Firma : ______________________________
 ```
 
-```
+```bash
 Resolución CS N° 076-04-2016-04-
 ```

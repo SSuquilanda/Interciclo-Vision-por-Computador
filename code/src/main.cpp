@@ -17,8 +17,7 @@ int main() {
 
     // Definir Ruta de Imagen
     std::string inFileName = projectPath +
-        "/../data/CT_low_dose_reconstruction_dataset/Original Data/"
-        "Quarter Dose/3mm Slice Thickness/Soft Kernel (B30)/L291/"
+        "/../data/L291_qd/"
         "L291_QD_3_1.CT.0003.0001.2015.12.23.17.49.43.831724.127634491.IMA";
 
     try {

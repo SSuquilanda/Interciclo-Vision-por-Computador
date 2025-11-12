@@ -54,18 +54,21 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 # Inyectar la ruta del proyecto como macro para C++
 add_definitions(-DPROJECT_SOURCE_DIR=${CMAKE_SOURCE_DIR})
 
-# Definir archivos fuente
-set(SOURCES
-    src/main.cpp
+# Definir archivos fuente comunes
+set(COMMON_SOURCES
     src/f2_io/dicom_reader.cpp
+    src/f2_io/dataset_explorer.cpp
     src/utils/itk_opencv_bridge.cpp
     src/f6_visualization/visualization.cpp
 )
 
-# Crear ejecutable
-add_executable(MyApp ${SOURCES})
+# Crear ejecutable principal
+add_executable(MyApp src/main.cpp ${COMMON_SOURCES})
 
-# Enlazar bibliotecas
+# Crear ejecutable para exploración del dataset
+add_executable(ExploreDataset src/explore_dataset.cpp ${COMMON_SOURCES})
+
+# Enlazar bibliotecas para ambos ejecutables
 if(UNIX AND NOT APPLE)
     # Incluir GStreamer en Linux
     target_link_libraries(MyApp PRIVATE
@@ -74,21 +77,35 @@ if(UNIX AND NOT APPLE)
         ${GST_LIBRARIES}
     )
     target_include_directories(MyApp PRIVATE ${GST_INCLUDE_DIRS})
+    
+    target_link_libraries(ExploreDataset PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+        ${GST_LIBRARIES}
+    )
+    target_include_directories(ExploreDataset PRIVATE ${GST_INCLUDE_DIRS})
 else()
     # OpenCV e ITK en Windows
     target_link_libraries(MyApp PRIVATE
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
     )
+    
+    target_link_libraries(ExploreDataset PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+    )
 endif()
 
-# Habilitar warnings
+# Habilitar warnings para ambos ejecutables
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(MyApp PRIVATE -Wall -Wextra)
+    target_compile_options(ExploreDataset PRIVATE -Wall -Wextra)
 elseif(MSVC)
     target_compile_options(MyApp PRIVATE /W4)
+    target_compile_options(ExploreDataset PRIVATE /W4)
 endif()
 
 message(STATUS "   Sistema: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "   Compilador: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
-message(STATUS "   Ejecutable: MyApp")
+message(STATUS "   Ejecutables: MyApp, ExploreDataset")
