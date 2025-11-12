@@ -29,11 +29,13 @@ show_menu() {
     echo "  1) Compilar proyecto completo"
     echo "  2) Ejecutar VisionApp (Aplicación de escritorio Qt6)"
     echo "  3) Ejecutar ExportSlices (Fase 2.1 - Exportar slices a PNG)"
-    echo "  4) Ejecutar ExploreDataset (Fase 2.2 - Comparar FD vs QD)"
-    echo "  5) Compilar y ejecutar VisionApp"
-    echo "  6) Compilar y ejecutar ExportSlices"
-    echo "  7) Compilar y ejecutar ExploreDataset"
-    echo "  8) Limpiar build"
+    echo "  4) Ejecutar ExportSlices3Views (Fase 2.1 - Exportar 3 vistas)"
+    echo "  5) Ejecutar ExploreDataset (Fase 2.2 - Comparar FD vs QD)"
+    echo "  6) Compilar y ejecutar VisionApp"
+    echo "  7) Compilar y ejecutar ExportSlices"
+    echo "  8) Compilar y ejecutar ExportSlices3Views"
+    echo "  9) Compilar y ejecutar ExploreDataset"
+    echo " 10) Limpiar build"
     echo "  0) Salir"
     echo ""
 }
@@ -131,6 +133,38 @@ run_vision_app() {
     echo -e "\n${GREEN}✓${NC} Aplicación cerrada"
 }
 
+# Función para ejecutar ExportSlices3Views
+run_export_slices_3views() {
+    echo -e "\n${YELLOW}═══ ExportSlices3Views - Exportación de 3 Vistas ═══${NC}\n"
+    
+    if [ ! -f "build/ExportSlices3Views" ]; then
+        echo -e "${RED}✗${NC} El ejecutable ExportSlices3Views no existe."
+        echo -e "${YELLOW}→${NC} Compila el proyecto primero (opción 1)"
+        return 1
+    fi
+    
+    cd build
+    
+    echo -e "${BLUE}Selecciona el dataset:${NC}"
+    echo "  1) Quarter Dose (QD)"
+    echo "  2) Full Dose (FD)"
+    read -p "Opción [1]: " dataset_choice
+    
+    case $dataset_choice in
+        2)
+            echo -e "\n${GREEN}→${NC} Ejecutando con Full Dose...\n"
+            ./ExportSlices3Views fd
+            ;;
+        *)
+            echo -e "\n${GREEN}→${NC} Ejecutando con Quarter Dose...\n"
+            ./ExportSlices3Views qd
+            ;;
+    esac
+    
+    cd ..
+    echo -e "\n${GREEN}✓${NC} Programa finalizado"
+}
+
 # Función para ejecutar ExploreDataset
 run_explore_dataset() {
     echo -e "\n${YELLOW}═══ ExploreDataset - Comparación FD vs QD ═══${NC}\n"
@@ -169,6 +203,9 @@ main() {
             export)
                 run_export_slices
                 ;;
+            export3views|3views)
+                run_export_slices_3views
+                ;;
             explore)
                 run_explore_dataset
                 ;;
@@ -177,7 +214,7 @@ main() {
                 ;;
             *)
                 echo -e "${RED}Comando no reconocido: $1${NC}"
-                echo "Uso: $0 [compile|app|export|explore|clean]"
+                echo "Uso: $0 [compile|app|export|export3views|explore|clean]"
                 exit 1
                 ;;
         esac
@@ -200,24 +237,32 @@ main() {
                 run_export_slices
                 ;;
             4)
-                run_explore_dataset
+                run_export_slices_3views
                 ;;
             5)
+                run_explore_dataset
+                ;;
+            6)
                 if compile; then
                     run_vision_app
                 fi
                 ;;
-            6)
+            7)
                 if compile; then
                     run_export_slices
                 fi
                 ;;
-            7)
+            8)
+                if compile; then
+                    run_export_slices_3views
+                fi
+                ;;
+            9)
                 if compile; then
                     run_explore_dataset
                 fi
                 ;;
-            8)
+            10)
                 clean_build
                 ;;
             0)

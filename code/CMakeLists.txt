@@ -88,6 +88,9 @@ add_executable(VisionApp src/main.cpp ${UI_SOURCES} ${COMMON_SOURCES})
 # Crear ejecutable para exportación de slices (Fase 2.1)
 add_executable(ExportSlices src/export_slices.cpp ${COMMON_SOURCES})
 
+# Crear ejecutable para exportación de slices en 3 vistas (Fase 2.1 extendida)
+add_executable(ExportSlices3Views src/export_slices_3_views.cpp ${COMMON_SOURCES})
+
 # Crear ejecutable para exploración del dataset (Fase 2.2)
 add_executable(ExploreDataset src/explore_dataset.cpp ${COMMON_SOURCES})
 
@@ -111,6 +114,13 @@ if(UNIX AND NOT APPLE)
     )
     target_include_directories(ExportSlices PRIVATE ${GST_INCLUDE_DIRS})
     
+    target_link_libraries(ExportSlices3Views PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+        ${GST_LIBRARIES}
+    )
+    target_include_directories(ExportSlices3Views PRIVATE ${GST_INCLUDE_DIRS})
+    
     target_link_libraries(ExploreDataset PRIVATE
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
@@ -132,6 +142,11 @@ else()
         ${ITK_LIBRARIES}
     )
     
+    target_link_libraries(ExportSlices3Views PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+    )
+    
     target_link_libraries(ExploreDataset PRIVATE
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
@@ -142,10 +157,12 @@ endif()
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(VisionApp PRIVATE -Wall -Wextra)
     target_compile_options(ExportSlices PRIVATE -Wall -Wextra)
+    target_compile_options(ExportSlices3Views PRIVATE -Wall -Wextra)
     target_compile_options(ExploreDataset PRIVATE -Wall -Wextra)
 elseif(MSVC)
     target_compile_options(VisionApp PRIVATE /W4)
     target_compile_options(ExportSlices PRIVATE /W4)
+    target_compile_options(ExportSlices3Views PRIVATE /W4)
     target_compile_options(ExploreDataset PRIVATE /W4)
 endif()
 
