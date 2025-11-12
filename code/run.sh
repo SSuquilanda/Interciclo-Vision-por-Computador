@@ -5,6 +5,13 @@
 # Vision por Computador - Interciclo
 # ============================================================================
 
+# Uso rápido:
+# ./run.sh app        # Ejecutar VisionApp (interfaz Qt6)
+# ./run.sh compile    # Compilar
+# ./run.sh export     # ExportSlices
+# ./run.sh explore    # ExploreDataset
+# ./run.sh clean      # Limpiar
+
 # Colores para output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -20,11 +27,13 @@ show_menu() {
     echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo "  1) Compilar proyecto completo"
-    echo "  2) Ejecutar ExportSlices (Fase 2.1 - Exportar slices a PNG)"
-    echo "  3) Ejecutar ExploreDataset (Fase 2.2 - Comparar FD vs QD)"
-    echo "  4) Compilar y ejecutar ExportSlices"
-    echo "  5) Compilar y ejecutar ExploreDataset"
-    echo "  6) Limpiar build"
+    echo "  2) Ejecutar VisionApp (Aplicación de escritorio Qt6)"
+    echo "  3) Ejecutar ExportSlices (Fase 2.1 - Exportar slices a PNG)"
+    echo "  4) Ejecutar ExploreDataset (Fase 2.2 - Comparar FD vs QD)"
+    echo "  5) Compilar y ejecutar VisionApp"
+    echo "  6) Compilar y ejecutar ExportSlices"
+    echo "  7) Compilar y ejecutar ExploreDataset"
+    echo "  8) Limpiar build"
     echo "  0) Salir"
     echo ""
 }
@@ -104,6 +113,24 @@ run_export_slices() {
     echo -e "\n${GREEN}✓${NC} Programa finalizado"
 }
 
+# Función para ejecutar VisionApp
+run_vision_app() {
+    echo -e "\n${YELLOW}═══ VisionApp - Aplicación de Escritorio Qt6 ═══${NC}\n"
+    
+    if [ ! -f "build/VisionApp" ]; then
+        echo -e "${RED}✗${NC} El ejecutable VisionApp no existe."
+        echo -e "${YELLOW}→${NC} Compila el proyecto primero (opción 1)"
+        return 1
+    fi
+    
+    cd build
+    echo -e "${GREEN}→${NC} Iniciando aplicación de escritorio...\n"
+    ./VisionApp
+    cd ..
+    
+    echo -e "\n${GREEN}✓${NC} Aplicación cerrada"
+}
+
 # Función para ejecutar ExploreDataset
 run_explore_dataset() {
     echo -e "\n${YELLOW}═══ ExploreDataset - Comparación FD vs QD ═══${NC}\n"
@@ -136,6 +163,9 @@ main() {
             compile|build)
                 compile
                 ;;
+            app|gui|vision)
+                run_vision_app
+                ;;
             export)
                 run_export_slices
                 ;;
@@ -147,7 +177,7 @@ main() {
                 ;;
             *)
                 echo -e "${RED}Comando no reconocido: $1${NC}"
-                echo "Uso: $0 [compile|export|explore|clean]"
+                echo "Uso: $0 [compile|app|export|explore|clean]"
                 exit 1
                 ;;
         esac
@@ -164,22 +194,30 @@ main() {
                 compile
                 ;;
             2)
-                run_export_slices
+                run_vision_app
                 ;;
             3)
-                run_explore_dataset
+                run_export_slices
                 ;;
             4)
+                run_explore_dataset
+                ;;
+            5)
+                if compile; then
+                    run_vision_app
+                fi
+                ;;
+            6)
                 if compile; then
                     run_export_slices
                 fi
                 ;;
-            5)
+            7)
                 if compile; then
                     run_explore_dataset
                 fi
                 ;;
-            6)
+            8)
                 clean_build
                 ;;
             0)

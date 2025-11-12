@@ -4,6 +4,11 @@ project(ProyectoVision CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Configuración de Qt6
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 # Configuración de rutas según sistema operativo
 if(WIN32)
     message(STATUS "Configurando para Windows")
@@ -17,6 +22,13 @@ else()
 endif()
 
 # Buscar paquetes
+find_package(Qt6 COMPONENTS Core Widgets Gui REQUIRED)
+if(Qt6_FOUND)
+    message(STATUS "Qt6 encontrado: ${Qt6_VERSION}")
+else()
+    message(FATAL_ERROR "Qt6 no encontrado")
+endif()
+
 find_package(OpenCV REQUIRED)
 if(OpenCV_FOUND)
     message(STATUS "OpenCV encontrado: ${OpenCV_VERSION}")
@@ -65,15 +77,33 @@ set(COMMON_SOURCES
     src/f6_visualization/visualization.cpp
 )
 
+# Definir archivos fuente de la UI Qt
+set(UI_SOURCES
+    src/f1_ui/mainwindow.cpp
+)
+
+# Crear ejecutable principal con interfaz Qt (Aplicación de escritorio)
+add_executable(VisionApp src/main.cpp ${UI_SOURCES} ${COMMON_SOURCES})
+
 # Crear ejecutable para exportación de slices (Fase 2.1)
 add_executable(ExportSlices src/export_slices.cpp ${COMMON_SOURCES})
 
 # Crear ejecutable para exploración del dataset (Fase 2.2)
 add_executable(ExploreDataset src/explore_dataset.cpp ${COMMON_SOURCES})
 
-# Enlazar bibliotecas para ambos ejecutables
+# Enlazar bibliotecas para todos los ejecutables
 if(UNIX AND NOT APPLE)
     # Incluir GStreamer en Linux
+    target_link_libraries(VisionApp PRIVATE
+        Qt6::Core
+        Qt6::Widgets
+        Qt6::Gui
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+        ${GST_LIBRARIES}
+    )
+    target_include_directories(VisionApp PRIVATE ${GST_INCLUDE_DIRS})
+    
     target_link_libraries(ExportSlices PRIVATE
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
@@ -89,6 +119,14 @@ if(UNIX AND NOT APPLE)
     target_include_directories(ExploreDataset PRIVATE ${GST_INCLUDE_DIRS})
 else()
     # OpenCV e ITK en Windows
+    target_link_libraries(VisionApp PRIVATE
+        Qt6::Core
+        Qt6::Widgets
+        Qt6::Gui
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+    )
+    
     target_link_libraries(ExportSlices PRIVATE
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
@@ -100,15 +138,17 @@ else()
     )
 endif()
 
-# Habilitar warnings para ambos ejecutables
+# Habilitar warnings para todos los ejecutables
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(VisionApp PRIVATE -Wall -Wextra)
     target_compile_options(ExportSlices PRIVATE -Wall -Wextra)
     target_compile_options(ExploreDataset PRIVATE -Wall -Wextra)
 elseif(MSVC)
+    target_compile_options(VisionApp PRIVATE /W4)
     target_compile_options(ExportSlices PRIVATE /W4)
     target_compile_options(ExploreDataset PRIVATE /W4)
 endif()
 
 message(STATUS "   Sistema: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "   Compilador: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
-message(STATUS "   Ejecutables: ExportSlices, ExploreDataset")
+message(STATUS "   Ejecutables: VisionApp (GUI), ExportSlices, ExploreDataset")
