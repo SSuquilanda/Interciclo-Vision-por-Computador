@@ -94,6 +94,14 @@ add_executable(ExportSlices3Views src/export_slices_3_views.cpp ${COMMON_SOURCES
 # Crear ejecutable para exploración del dataset (Fase 2.2)
 add_executable(ExploreDataset src/explore_dataset.cpp ${COMMON_SOURCES})
 
+# Crear ejecutable para el pipeline completo (Fases 3, 4, 5)
+add_executable(MainPipeline src/mainpipeline.cpp ${COMMON_SOURCES})
+
+# Pipelines especializados por órgano
+add_executable(PipelinePulmones src/pipeline_pulmones.cpp ${COMMON_SOURCES})
+add_executable(PipelineHuesos src/pipeline_huesos.cpp ${COMMON_SOURCES})
+add_executable(PipelineArterias src/pipeline_arterias.cpp ${COMMON_SOURCES})
+
 # Enlazar bibliotecas para todos los ejecutables
 if(UNIX AND NOT APPLE)
     # Incluir GStreamer en Linux
@@ -127,6 +135,34 @@ if(UNIX AND NOT APPLE)
         ${GST_LIBRARIES}
     )
     target_include_directories(ExploreDataset PRIVATE ${GST_INCLUDE_DIRS})
+    
+    target_link_libraries(MainPipeline PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+        ${GST_LIBRARIES}
+    )
+    target_include_directories(MainPipeline PRIVATE ${GST_INCLUDE_DIRS})
+    
+    target_link_libraries(PipelinePulmones PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+        ${GST_LIBRARIES}
+    )
+    target_include_directories(PipelinePulmones PRIVATE ${GST_INCLUDE_DIRS})
+    
+    target_link_libraries(PipelineHuesos PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+        ${GST_LIBRARIES}
+    )
+    target_include_directories(PipelineHuesos PRIVATE ${GST_INCLUDE_DIRS})
+    
+    target_link_libraries(PipelineArterias PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+        ${GST_LIBRARIES}
+    )
+    target_include_directories(PipelineArterias PRIVATE ${GST_INCLUDE_DIRS})
 else()
     # OpenCV e ITK en Windows
     target_link_libraries(VisionApp PRIVATE
@@ -151,6 +187,26 @@ else()
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
     )
+    
+    target_link_libraries(MainPipeline PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+    )
+    
+    target_link_libraries(PipelinePulmones PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+    )
+    
+    target_link_libraries(PipelineHuesos PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+    )
+    
+    target_link_libraries(PipelineArterias PRIVATE
+        ${OpenCV_LIBS}
+        ${ITK_LIBRARIES}
+    )
 endif()
 
 # Habilitar warnings para todos los ejecutables
@@ -159,11 +215,19 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(ExportSlices PRIVATE -Wall -Wextra)
     target_compile_options(ExportSlices3Views PRIVATE -Wall -Wextra)
     target_compile_options(ExploreDataset PRIVATE -Wall -Wextra)
+    target_compile_options(MainPipeline PRIVATE -Wall -Wextra)
+    target_compile_options(PipelinePulmones PRIVATE -Wall -Wextra)
+    target_compile_options(PipelineHuesos PRIVATE -Wall -Wextra)
+    target_compile_options(PipelineArterias PRIVATE -Wall -Wextra)
 elseif(MSVC)
     target_compile_options(VisionApp PRIVATE /W4)
     target_compile_options(ExportSlices PRIVATE /W4)
     target_compile_options(ExportSlices3Views PRIVATE /W4)
     target_compile_options(ExploreDataset PRIVATE /W4)
+    target_compile_options(MainPipeline PRIVATE /W4)
+    target_compile_options(PipelinePulmones PRIVATE /W4)
+    target_compile_options(PipelineHuesos PRIVATE /W4)
+    target_compile_options(PipelineArterias PRIVATE /W4)
 endif()
 
 message(STATUS "   Sistema: ${CMAKE_SYSTEM_NAME}")
