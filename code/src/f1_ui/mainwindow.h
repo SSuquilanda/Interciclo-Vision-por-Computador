@@ -14,12 +14,42 @@
 #include <QSpinBox>
 #include <QDoubleSpinBox>
 #include <QCheckBox>
+#include <QRadioButton>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QStatusBar>
 #include <QMenuBar>
 #include <QToolBar>
 #include <QAction>
+#include <QSlider>
+#include <QScrollArea>
+#include <QPixmap>
+#include <QImage>
+#include <QTableWidget>
+#include <QHeaderView>
+
+#include <opencv2/core.hpp>
+#include <string>
+#include <vector>
+
+// Estructura para manejar el estado del slice actual
+struct SliceContext {
+    // Imágenes en cada etapa del pipeline
+    cv::Mat originalRaw;      // 16-bit DICOM original
+    cv::Mat preprocessed;     // Resultado de F3 (Filtros/DnCNN)
+    cv::Mat segmentationMask; // Resultado de F4 (Máscaras)
+    cv::Mat segmentationOriginal; // Copia de segmentación antes de morfología
+    cv::Mat finalOverlay;     // Resultado visual a color
+    
+    // Métricas
+    double executionTimeMs = 0.0;
+    double snrValue = 0.0;
+    double processingTimeMs = 0.0;  // Tiempo total del pipeline
+    
+    // Flags de estado
+    bool needsUpdate = true;  // Para evitar recálculos innecesarios
+    bool isValid = false;     // Si el slice se cargó correctamente
+};
 
 class MainWindow : public QMainWindow
 {
@@ -38,6 +68,37 @@ private slots:
 
     // Slots para las pestañas
     void onTabChanged(int index);
+    
+    // Slots para navegación de slices
+    void onSliceChanged(int sliceIndex);
+    void onSpinBoxChanged(int value);
+    
+    // Slots para procesamiento
+    void onProcessCurrentSlice();
+    
+    // Slots para preprocesamiento
+    void onFilterChanged();
+    void onPresetLungs();
+    void onPresetBones();
+    void onPresetSoftTissue();
+    void onResetFilters();
+    
+    // Slots para segmentación
+    void onSegmentationChanged();
+    void onSegPresetLungs();
+    void onSegPresetBones();
+    void onSegPresetSoftTissue();
+    void onResetSegmentation();
+    
+    // Slots para morfología
+    void onMorphologyChanged();
+    void onMorphPresetLungs();
+    void onMorphPresetBones();
+    void onResetMorphology();
+    
+    // Slots para visualización
+    void onVisualizationChanged();
+    void onSaveClicked();
 
 private:
     // Métodos de inicialización
@@ -46,6 +107,7 @@ private:
     void createToolBar();
     void createStatusBar();
     void createTabs();
+    void createSliceNavigator();
     
     // Creación de pestañas individuales
     QWidget* createWelcomeTab();
@@ -55,6 +117,24 @@ private:
     QWidget* createMorphologyTab();
     QWidget* createVisualizationTab();
     QWidget* createMetricsTab();
+    
+    // Métodos de procesamiento
+    void loadDatasetFiles(const QString& dirPath);
+    void loadSlice(int sliceIndex);
+    void processCurrentSlice();
+    void updateDisplay();
+    void applyPreprocessing();
+    void applySegmentation();
+    void applyMorphology();
+    void updateVisualization();
+    void updateMetrics();
+    
+    // Métodos auxiliares
+    QImage cvMatToQImage(const cv::Mat& mat);
+    void displayImage(const cv::Mat& image);
+    void updatePreprocessingDisplay();
+    void updateSegmentationDisplay();
+    void updateMorphologyDisplay();
 
     // Widgets principales
     QTabWidget *tabWidget;
@@ -72,9 +152,139 @@ private:
     QProgressBar *progressBar;
     QTextEdit *logOutput;
     
+    // Widgets de navegación por slices
+    QWidget *sliceNavigatorWidget;
+    QSlider *sliceSlider;
+    QSpinBox *sliceSpinBox;
+    QLabel *sliceCountLabel;
+    
+    // Widgets de visualización
+    QLabel *imageDisplayLabel;
+    QScrollArea *imageScrollArea;
+    
+    // Widgets de preprocesamiento
+    QLabel *imageBeforeLabel;
+    QLabel *imageAfterLabel;
+    QScrollArea *scrollBeforeArea;
+    QScrollArea *scrollAfterArea;
+    
+    // Controles de filtros
+    QCheckBox *checkGaussian;
+    QSlider *sliderGaussianKernel;
+    QLabel *lblGaussianValue;
+    
+    QCheckBox *checkMedian;
+    QSlider *sliderMedianKernel;
+    QLabel *lblMedianValue;
+    
+    QCheckBox *checkBilateral;
+    QSlider *sliderBilateralD;
+    QSlider *sliderBilateralSigma;
+    QLabel *lblBilateralDValue;
+    QLabel *lblBilateralSigmaValue;
+    
+    QCheckBox *checkCLAHE;
+    QSlider *sliderCLAHEClip;
+    QSlider *sliderCLAHETile;
+    QLabel *lblCLAHEClipValue;
+    QLabel *lblCLAHETileValue;
+    
+    QPushButton *btnPresetLungs;
+    QPushButton *btnPresetBones;
+    QPushButton *btnPresetSoftTissue;
+    QPushButton *btnResetFilters;
+    
+    // Widgets de segmentación
+    QLabel *imageSegBeforeLabel;
+    QLabel *imageSegAfterLabel;
+    QScrollArea *scrollSegBeforeArea;
+    QScrollArea *scrollSegAfterArea;
+    
+    // Controles de segmentación
+    QSlider *sliderMinHU;
+    QSlider *sliderMaxHU;
+    QSlider *sliderMinArea;
+    QSlider *sliderMaxArea;
+    QLabel *lblMinHUValue;
+    QLabel *lblMaxHUValue;
+    QLabel *lblMinAreaValue;
+    QLabel *lblMaxAreaValue;
+    
+    QCheckBox *checkShowContours;
+    QCheckBox *checkShowOverlay;
+    QCheckBox *checkShowLabels;
+    QCheckBox *checkFilterBorder;
+    
+    QPushButton *btnSegPresetLungs;
+    QPushButton *btnSegPresetBones;
+    QPushButton *btnSegPresetSoftTissue;
+    QPushButton *btnResetSegmentation;
+    
+    // Morphology tab widgets
+    QLabel *imageMorphBeforeLabel;
+    QLabel *imageMorphAfterLabel;
+    QScrollArea *scrollMorphBeforeArea;
+    QScrollArea *scrollMorphAfterArea;
+    
+    // Controles de morfología
+    QCheckBox *checkErode;
+    QCheckBox *checkDilate;
+    QCheckBox *checkOpening;
+    QCheckBox *checkClosing;
+    QCheckBox *checkGradient;
+    QCheckBox *checkFillHoles;
+    QCheckBox *checkRemoveBorder;
+    
+    QSlider *sliderErodeKernel;
+    QSlider *sliderDilateKernel;
+    QSlider *sliderOpeningKernel;
+    QSlider *sliderClosingKernel;
+    QSlider *sliderGradientKernel;
+    QSlider *sliderErodeIter;
+    QSlider *sliderDilateIter;
+    
+    QComboBox *comboKernelShape;
+    
+    QLabel *lblErodeKernelValue;
+    QLabel *lblDilateKernelValue;
+    QLabel *lblOpeningKernelValue;
+    QLabel *lblClosingKernelValue;
+    QLabel *lblGradientKernelValue;
+    QLabel *lblErodeIterValue;
+    QLabel *lblDilateIterValue;
+    
+    QPushButton *btnMorphPresetLungs;
+    QPushButton *btnMorphPresetBones;
+    QPushButton *btnResetMorphology;
+    
+    // Visualization tab widgets
+    QLabel *lblFinalView;
+    QScrollArea *scrollFinalView;
+    QCheckBox *chkShowLungs;
+    QCheckBox *chkShowBones;
+    QCheckBox *chkShowSoftTissue;
+    QRadioButton *radStyleFill;
+    QRadioButton *radStyleContour;
+    QSlider *sliderOpacity;
+    QLabel *lblOpacityValue;
+    QPushButton *btnSaveFinal;
+    
+    // Metrics tab widgets
+    QTableWidget *tableMetrics;
+    QLabel *lblHistogramROI;
+    QLabel *lblProcessTime;
+    QLabel *lblMemoryUsage;
+    
     // Variables de estado
     QString currentDatasetPath;
     bool datasetLoaded;
+    
+    // Datos del dataset
+    std::vector<std::string> dicomFiles;  // Lista de archivos DICOM
+    int currentSliceIndex;
+    
+    // Contexto del slice actual
+    SliceContext sliceContext;
 };
 
 #endif // MAINWINDOW_H
