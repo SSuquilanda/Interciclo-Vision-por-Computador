@@ -20,7 +20,8 @@ struct SegmentedRegion {
     cv::Rect boundingBox;           // Caja delimitadora
     double area;                    // Área en píxeles
     cv::Point2d centroid;           // Centro de masa
-    std::string label;              // Etiqueta (ej: "Pulmón Izquierdo")
+    std::string label; 
+    double meanHU;             // Valor medio de Hounsfield
     cv::Scalar color;               // Color para visualización
 };
 
@@ -45,6 +46,7 @@ struct SegmentationParams {
  * @return Máscara binaria
  */
 cv::Mat thresholdOtsu(const cv::Mat& image);
+
 
 /**
  * @brief Aplica umbralización manual con un valor específico
@@ -249,6 +251,88 @@ SegmentationParams getDefaultBoneParams();
  */
 void saveSegmentationMasks(const std::vector<SegmentedRegion>& regions, 
                             const std::string& outputPath);
+
+// ════════════════════════════════════════════════════════════
+// SEGMENTACIÓN DE ARTERIAS (NUEVA SECCIÓN)
+// ════════════════════════════════════════════════════════════
+
+/**
+ * @brief Tipo de arteria detectada
+ */
+enum class ArteriaType {
+    DESCONOCIDA,
+    AORTA_ASCENDENTE,
+    AORTA_DESCENDENTE,
+    ARCO_AORTICO,
+    PULMONAR_PRINCIPAL,
+    PULMONAR_DERECHA,
+    PULMONAR_IZQUIERDA
+};
+
+/**
+ * @brief Estructura para almacenar información de arteria detectada
+ */
+struct ArteriaRegion {
+    ArteriaType tipo;
+    cv::Mat mask;              // Máscara binaria
+    cv::Rect boundingBox;
+    double area;
+    double circularidad;       // 0-1 (1 = círculo perfecto)
+    double meanHU;
+    cv::Point2f centroid;
+    cv::Scalar color;
+    std::string label;
+};
+
+/**
+ * @brief Parámetros para segmentación de arterias
+ */
+struct ArteriaParams {
+    double minHU = 150.0;
+    double maxHU = 600.0;
+    double minArea = 50.0;
+    double maxArea = 5000.0;    
+    double minCircularidad = 0.2;
+    double maxCircularidad = 1.0;
+};
+
+/**
+ * @brief Segmenta arterias pulmonares y aorta en imagen CT
+ * @param imageHU Imagen en valores Hounsfield (16-bit signed)
+ * @param params Parámetros de segmentación
+ * @return Vector con arterias detectadas y clasificadas
+ */
+std::vector<ArteriaRegion> segmentArterias(const cv::Mat& imageHU, 
+                                           const ArteriaParams& params = ArteriaParams());
+
+/**
+ * @brief Calcula circularidad de una región
+ * @param area Área de la región
+ * @param perimeter Perímetro de la región
+ * @return Circularidad (0-1, donde 1 es círculo perfecto)
+ */
+double calculateCircularity(double area, double perimeter);
+
+/**
+ * @brief Clasifica tipo de arteria según forma y posición
+ * @param region Región segmentada
+ * @param circularidad Circularidad calculada
+ * @param imageSize Tamaño de la imagen completa
+ * @return Tipo de arteria detectada
+ */
+ArteriaType classifyArteria(const SegmentedRegion& region, 
+                            double circularidad,
+                            const cv::Size& imageSize);
+
+/**
+ * @brief Obtiene nombre legible del tipo de arteria
+ */
+std::string getArteriaTypeName(ArteriaType tipo);
+
+/**
+ * @brief Obtiene color asignado al tipo de arteria
+ */
+cv::Scalar getArteriaTypeColor(ArteriaType tipo);
 
 } // namespace Segmentation
 

@@ -188,4 +188,28 @@ std::vector<std::pair<std::string, cv::Mat>> comparePreprocessingTechniques(cons
     return results;
 }
 
+cv::Mat preprocessCTImageWithDenoising(const cv::Mat& image, 
+                                        bool useCLAHE,
+                                        Denoising::DnCNNDenoiser* denoiser) {
+    cv::Mat processed = image.clone();
+    
+    // 1. Aplicar denoising si está habilitado
+    if (denoiser != nullptr && denoiser->isLoaded()) {
+        processed = denoiser->denoise(processed);
+    }
+    
+    // 2. Convertir a escala de grises
+    processed = convertToGrayscale(processed);
+    
+    // 3. Ecualización
+    if (useCLAHE) {
+        processed = applyCLAHE(processed, 2.0, cv::Size(8, 8));
+    } else {
+        processed = equalizeHistogram(processed);
+    }
+    
+    return processed;
+}
+
+
 } // namespace Preprocessing

@@ -74,6 +74,7 @@ set(COMMON_SOURCES
     src/f2_io/dataset_explorer.cpp
     src/f3_preprocessing/preprocessing.cpp
     src/f4_segmentation/segmentation.cpp
+    src/f3_preprocessing/denoising.cpp
     src/f5_morphology/morphology.cpp
     src/utils/itk_opencv_bridge.cpp
     src/f6_visualization/visualization.cpp

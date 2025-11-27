@@ -3,6 +3,7 @@
 
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
+#include "denoising.h"
 
 namespace Preprocessing {
 
@@ -130,6 +131,17 @@ cv::Mat preprocessCTImage(const cv::Mat& image, bool useCLAHE = true,
  * @return Vector con pares <nombre_técnica, imagen_resultado>
  */
 std::vector<std::pair<std::string, cv::Mat>> comparePreprocessingTechniques(const cv::Mat& image);
+
+/**
+ * @brief Pipeline completo con opción de denoising con red neuronal
+ * @param image Imagen de entrada
+ * @param useCLAHE Usar CLAHE para ecualización
+ * @param denoiser Puntero a denoiser (nullptr = no usar)
+ * @return Imagen preprocesada
+ */
+cv::Mat preprocessCTImageWithDenoising(const cv::Mat& image, 
+                                        bool useCLAHE,
+                                        Denoising::DnCNNDenoiser* denoiser);
 
 } // namespace Preprocessing
 
