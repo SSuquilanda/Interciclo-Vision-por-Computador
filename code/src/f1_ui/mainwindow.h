@@ -17,6 +17,7 @@
 #include <QRadioButton>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QDialog>
 #include <QStatusBar>
 #include <QMenuBar>
 #include <QToolBar>
@@ -31,15 +32,29 @@
 #include <opencv2/core.hpp>
 #include <string>
 #include <vector>
+#include <memory>
+
+// Forward declarations
+namespace Denoising {
+    class DnCNNDenoiser;
+}
+
+#include "../f4_segmentation/segmentation.h"
 
 // Estructura para manejar el estado del slice actual
 struct SliceContext {
     // Imágenes en cada etapa del pipeline
     cv::Mat originalRaw;      // 16-bit DICOM original
-    cv::Mat preprocessed;     // Resultado de F3 (Filtros/DnCNN)
+    cv::Mat preprocessed;     // Resultado de F3 (Filtros tradicionales)
+    cv::Mat preprocessedDnCNN; // Resultado de F3 (Red neuronal DnCNN)
     cv::Mat segmentationMask; // Resultado de F4 (Máscaras)
     cv::Mat segmentationOriginal; // Copia de segmentación antes de morfología
     cv::Mat finalOverlay;     // Resultado visual a color
+    
+    // Almacenamiento de regiones segmentadas por tipo de órgano
+    std::vector<Segmentation::SegmentedRegion> pulmonesRegions;
+    std::vector<Segmentation::SegmentedRegion> huesosRegions;
+    std::vector<Segmentation::SegmentedRegion> aortaRegions;
     
     // Métricas
     double executionTimeMs = 0.0;
@@ -82,18 +97,20 @@ private slots:
     void onPresetBones();
     void onPresetSoftTissue();
     void onResetFilters();
+    void onCompareWithDnCNN();
     
     // Slots para segmentación
     void onSegmentationChanged();
     void onSegPresetLungs();
     void onSegPresetBones();
-    void onSegPresetSoftTissue();
+    void onSegPresetAorta();
     void onResetSegmentation();
     
     // Slots para morfología
     void onMorphologyChanged();
     void onMorphPresetLungs();
     void onMorphPresetBones();
+    void onMorphPresetAorta();
     void onResetMorphology();
     
     // Slots para visualización
@@ -194,6 +211,11 @@ private:
     QPushButton *btnPresetSoftTissue;
     QPushButton *btnResetFilters;
     
+    // Controles de DnCNN
+    QCheckBox *checkDnCNN;
+    QLabel *lblDnCNNStatus;
+    QPushButton *btnCompareWithDnCNN;
+    
     // Widgets de segmentación
     QLabel *imageSegBeforeLabel;
     QLabel *imageSegAfterLabel;
@@ -217,7 +239,7 @@ private:
     
     QPushButton *btnSegPresetLungs;
     QPushButton *btnSegPresetBones;
-    QPushButton *btnSegPresetSoftTissue;
+    QPushButton *btnSegPresetAorta;
     QPushButton *btnResetSegmentation;
     
     // Morphology tab widgets
@@ -255,6 +277,7 @@ private:
     
     QPushButton *btnMorphPresetLungs;
     QPushButton *btnMorphPresetBones;
+    QPushButton *btnMorphPresetAorta;
     QPushButton *btnResetMorphology;
     
     // Visualization tab widgets
@@ -285,6 +308,9 @@ private:
     
     // Contexto del slice actual
     SliceContext sliceContext;
+    
+    // Red neuronal DnCNN
+    std::unique_ptr<Denoising::DnCNNDenoiser> dncnnDenoiser;
 };
 
 #endif // MAINWINDOW_H

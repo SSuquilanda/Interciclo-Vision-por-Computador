@@ -2,6 +2,7 @@
 #include "f2_io/dicom_reader.h"
 #include "utils/itk_opencv_bridge.h"
 #include "f3_preprocessing/preprocessing.h"
+#include "f3_preprocessing/denoising.h"
 #include "f4_segmentation/segmentation.h"
 #include "f5_morphology/morphology.h"
 
@@ -58,6 +59,9 @@ MainWindow::MainWindow(QWidget *parent)
     , btnPresetBones(nullptr)
     , btnPresetSoftTissue(nullptr)
     , btnResetFilters(nullptr)
+    , checkDnCNN(nullptr)
+    , lblDnCNNStatus(nullptr)
+    , btnCompareWithDnCNN(nullptr)
     , imageSegBeforeLabel(nullptr)
     , imageSegAfterLabel(nullptr)
     , scrollSegBeforeArea(nullptr)
@@ -76,7 +80,7 @@ MainWindow::MainWindow(QWidget *parent)
     , checkFilterBorder(nullptr)
     , btnSegPresetLungs(nullptr)
     , btnSegPresetBones(nullptr)
-    , btnSegPresetSoftTissue(nullptr)
+    , btnSegPresetAorta(nullptr)
     , btnResetSegmentation(nullptr)
     , imageMorphBeforeLabel(nullptr)
     , imageMorphAfterLabel(nullptr)
@@ -106,6 +110,7 @@ MainWindow::MainWindow(QWidget *parent)
     , lblDilateIterValue(nullptr)
     , btnMorphPresetLungs(nullptr)
     , btnMorphPresetBones(nullptr)
+    , btnMorphPresetAorta(nullptr)
     , btnResetMorphology(nullptr)
     , lblFinalView(nullptr)
     , scrollFinalView(nullptr)
@@ -125,6 +130,30 @@ MainWindow::MainWindow(QWidget *parent)
     , currentSliceIndex(0)
 {
     setupUI();
+    
+    // Inicializar DnCNN Denoiser
+    dncnnDenoiser = std::make_unique<Denoising::DnCNNDenoiser>();
+    std::string modelPath = "../models/dncnn_grayscale.onnx";
+    
+    if (dncnnDenoiser->loadModel(modelPath)) {
+        if (lblDnCNNStatus) {
+            lblDnCNNStatus->setText("Estado: Modelo cargado ✓");
+            lblDnCNNStatus->setStyleSheet("QLabel { color: green; font-weight: bold; padding: 5px; }");
+        }
+        if (btnCompareWithDnCNN) {
+            btnCompareWithDnCNN->setEnabled(true);
+        }
+        std::cout << "✓ Modelo DnCNN cargado exitosamente desde: " << modelPath << std::endl;
+    } else {
+        if (lblDnCNNStatus) {
+            lblDnCNNStatus->setText("Estado: Modelo no encontrado ✗");
+            lblDnCNNStatus->setStyleSheet("QLabel { color: red; font-weight: bold; padding: 5px; }");
+        }
+        if (checkDnCNN) {
+            checkDnCNN->setEnabled(false);
+        }
+        std::cerr << "✗ No se pudo cargar el modelo DnCNN desde: " << modelPath << std::endl;
+    }
     
     // Configurar tamaño inicial (80% de la pantalla)
     QScreen *screen = QApplication::primaryScreen();
@@ -453,12 +482,14 @@ QWidget* MainWindow::createPreprocessingTab()
     
     btnPresetBones = new QPushButton("🦴 Huesos Óptimo");
     btnPresetBones->setMinimumHeight(35);
-    btnPresetBones->setEnabled(false); // Por implementar
+    btnPresetBones->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
+    connect(btnPresetBones, &QPushButton::clicked, this, &MainWindow::onPresetBones);
     presetLayout->addWidget(btnPresetBones);
     
-    btnPresetSoftTissue = new QPushButton("🫀 Tejido Blando Óptimo");
+    btnPresetSoftTissue = new QPushButton("🩸 Aorta Óptimo");
     btnPresetSoftTissue->setMinimumHeight(35);
-    btnPresetSoftTissue->setEnabled(false); // Por implementar
+    btnPresetSoftTissue->setStyleSheet("QPushButton { background-color: #f44336; color: white; font-weight: bold; }");
+    connect(btnPresetSoftTissue, &QPushButton::clicked, this, &MainWindow::onPresetSoftTissue);
     presetLayout->addWidget(btnPresetSoftTissue);
     
     btnResetFilters = new QPushButton("↺ Resetear Filtros");
@@ -576,6 +607,33 @@ QWidget* MainWindow::createPreprocessingTab()
     filtersLayout->addLayout(claheTileLayout);
     
     controlLayout->addWidget(filtersGroup);
+    
+    // ========== GRUPO: RED NEURONAL DnCNN ==========
+    QGroupBox *dncnnGroup = new QGroupBox("Red Neuronal DnCNN (Denoising)");
+    QVBoxLayout *dncnnLayout = new QVBoxLayout(dncnnGroup);
+    
+    checkDnCNN = new QCheckBox("Usar DnCNN en lugar de filtros tradicionales");
+    connect(checkDnCNN, &QCheckBox::stateChanged, this, &MainWindow::onFilterChanged);
+    dncnnLayout->addWidget(checkDnCNN);
+    
+    lblDnCNNStatus = new QLabel("Estado: Modelo no cargado");
+    lblDnCNNStatus->setStyleSheet("QLabel { color: red; font-weight: bold; padding: 5px; }");
+    dncnnLayout->addWidget(lblDnCNNStatus);
+    
+    QLabel *infoLabel = new QLabel(
+        "DnCNN es una red neuronal convolucional para reducción de ruido.<br>"
+        "Compara el resultado con los filtros tradicionales en la vista previa."
+    );
+    infoLabel->setWordWrap(true);
+    infoLabel->setStyleSheet("QLabel { font-size: 9pt; color: #666; }");
+    dncnnLayout->addWidget(infoLabel);
+    
+    btnCompareWithDnCNN = new QPushButton("Ver Comparación Detallada");
+    btnCompareWithDnCNN->setEnabled(false);
+    connect(btnCompareWithDnCNN, &QPushButton::clicked, this, &MainWindow::onCompareWithDnCNN);
+    dncnnLayout->addWidget(btnCompareWithDnCNN);
+    
+    controlLayout->addWidget(dncnnGroup);
     controlLayout->addStretch();
     
     mainLayout->addWidget(controlPanel);
@@ -651,13 +709,15 @@ QWidget* MainWindow::createSegmentationTab()
     
     btnSegPresetBones = new QPushButton("🦴 Huesos Óptimo");
     btnSegPresetBones->setMinimumHeight(35);
-    btnSegPresetBones->setEnabled(false); // Por implementar
+    btnSegPresetBones->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
+    connect(btnSegPresetBones, &QPushButton::clicked, this, &MainWindow::onSegPresetBones);
     presetLayout->addWidget(btnSegPresetBones);
     
-    btnSegPresetSoftTissue = new QPushButton("🫀 Tejido Blando Óptimo");
-    btnSegPresetSoftTissue->setMinimumHeight(35);
-    btnSegPresetSoftTissue->setEnabled(false); // Por implementar
-    presetLayout->addWidget(btnSegPresetSoftTissue);
+    btnSegPresetAorta = new QPushButton("🩸 Aorta Óptimo");
+    btnSegPresetAorta->setMinimumHeight(35);
+    btnSegPresetAorta->setStyleSheet("QPushButton { background-color: #f44336; color: white; font-weight: bold; }");
+    connect(btnSegPresetAorta, &QPushButton::clicked, this, &MainWindow::onSegPresetAorta);
+    presetLayout->addWidget(btnSegPresetAorta);
     
     btnResetSegmentation = new QPushButton("↺ Resetear Segmentación");
     btnResetSegmentation->setMinimumHeight(30);
@@ -845,16 +905,26 @@ QWidget* MainWindow::createMorphologyTab()
 
     // Preset buttons
     QHBoxLayout *presetLayout = new QHBoxLayout();
-    btnMorphPresetLungs = new QPushButton("Pulmones Óptimo");
-    btnMorphPresetBones = new QPushButton("Huesos Óptimo");
-    btnResetMorphology = new QPushButton("Resetear");
+    btnMorphPresetLungs = new QPushButton("🫁 Pulmones Óptimo");
+    btnMorphPresetLungs->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; }");
+    
+    btnMorphPresetBones = new QPushButton("🦴 Huesos Óptimo");
+    btnMorphPresetBones->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
+    
+    btnMorphPresetAorta = new QPushButton("🩸 Aorta Óptimo");
+    btnMorphPresetAorta->setStyleSheet("QPushButton { background-color: #f44336; color: white; font-weight: bold; }");
+    
+    btnResetMorphology = new QPushButton("↺ Resetear");
+    
     presetLayout->addWidget(btnMorphPresetLungs);
     presetLayout->addWidget(btnMorphPresetBones);
+    presetLayout->addWidget(btnMorphPresetAorta);
     presetLayout->addWidget(btnResetMorphology);
     controlLayout->addLayout(presetLayout);
 
     connect(btnMorphPresetLungs, &QPushButton::clicked, this, &MainWindow::onMorphPresetLungs);
     connect(btnMorphPresetBones, &QPushButton::clicked, this, &MainWindow::onMorphPresetBones);
+    connect(btnMorphPresetAorta, &QPushButton::clicked, this, &MainWindow::onMorphPresetAorta);
     connect(btnResetMorphology, &QPushButton::clicked, this, &MainWindow::onResetMorphology);
 
     controlLayout->addSpacing(10);
@@ -1147,9 +1217,9 @@ QWidget* MainWindow::createVisualizationTab()
     chkShowBones->setEnabled(false); // Por ahora deshabilitado
     layersLayout->addWidget(chkShowBones);
 
-    chkShowSoftTissue = new QCheckBox("Tejido Blando (Rojo)");
-    chkShowSoftTissue->setChecked(false);
-    chkShowSoftTissue->setEnabled(false); // Por ahora deshabilitado
+    chkShowSoftTissue = new QCheckBox("🩸 Aorta (Rojo)");
+    chkShowSoftTissue->setChecked(true);
+    chkShowSoftTissue->setEnabled(true); // Habilitado para visualizar aorta
     layersLayout->addWidget(chkShowSoftTissue);
 
     connect(chkShowLungs, &QCheckBox::stateChanged, this, &MainWindow::onVisualizationChanged);
@@ -1550,6 +1620,11 @@ void MainWindow::loadSlice(int sliceIndex)
             throw std::runtime_error("Error al convertir imagen ITK a OpenCV");
         }
         
+        // Limpiar vectores de regiones al cargar nuevo slice
+        sliceContext.pulmonesRegions.clear();
+        sliceContext.huesosRegions.clear();
+        sliceContext.aortaRegions.clear();
+        
         sliceContext.isValid = true;
         sliceContext.needsUpdate = true;
         
@@ -1687,39 +1762,56 @@ void MainWindow::applyPreprocessing()
     // Partir de la imagen normalizada a 8-bit
     cv::Mat current = Bridge::normalize16to8bit(sliceContext.originalRaw);
     
-    // Aplicar filtros en orden si están activados
+    // DECISIÓN: ¿Usar DnCNN o filtros tradicionales?
+    bool useDnCNN = checkDnCNN && checkDnCNN->isChecked() && 
+                    dncnnDenoiser && dncnnDenoiser->isLoaded();
     
-    // 1. Filtro Gaussiano
-    if (checkGaussian && checkGaussian->isChecked()) {
-        int kernelSize = sliderGaussianKernel->value();
-        // Asegurar que sea impar
-        if (kernelSize % 2 == 0) kernelSize++;
-        current = Preprocessing::applyGaussianBlur(current, kernelSize);
+    if (useDnCNN) {
+        // ===== OPCIÓN A: RED NEURONAL DnCNN =====
+        std::cout << "Aplicando DnCNN para denoising..." << std::endl;
+        
+        cv::TickMeter timer;
+        timer.start();
+        
+        sliceContext.preprocessedDnCNN = dncnnDenoiser->denoise(current);
+        sliceContext.preprocessed = sliceContext.preprocessedDnCNN.clone();
+        
+        timer.stop();
+        std::cout << "  Tiempo DnCNN: " << timer.getTimeMilli() << " ms" << std::endl;
+        
+    } else {
+        // ===== OPCIÓN B: FILTROS TRADICIONALES =====
+        
+        // 1. Filtro Gaussiano
+        if (checkGaussian && checkGaussian->isChecked()) {
+            int kernelSize = sliderGaussianKernel->value();
+            if (kernelSize % 2 == 0) kernelSize++;
+            current = Preprocessing::applyGaussianBlur(current, kernelSize);
+        }
+        
+        // 2. Filtro Mediana
+        if (checkMedian && checkMedian->isChecked()) {
+            int kernelSize = sliderMedianKernel->value();
+            if (kernelSize % 2 == 0) kernelSize++;
+            current = Preprocessing::applyMedianFilter(current, kernelSize);
+        }
+        
+        // 3. Filtro Bilateral
+        if (checkBilateral && checkBilateral->isChecked()) {
+            int d = sliderBilateralD->value();
+            double sigma = sliderBilateralSigma->value();
+            current = Preprocessing::applyBilateralFilter(current, d, sigma, sigma);
+        }
+        
+        // 4. CLAHE (mejora de contraste)
+        if (checkCLAHE && checkCLAHE->isChecked()) {
+            double clipLimit = sliderCLAHEClip->value() / 10.0;
+            int tileSize = sliderCLAHETile->value();
+            current = Preprocessing::applyCLAHE(current, clipLimit, cv::Size(tileSize, tileSize));
+        }
+        
+        sliceContext.preprocessed = current;
     }
-    
-    // 2. Filtro Mediana
-    if (checkMedian && checkMedian->isChecked()) {
-        int kernelSize = sliderMedianKernel->value();
-        if (kernelSize % 2 == 0) kernelSize++;
-        current = Preprocessing::applyMedianFilter(current, kernelSize);
-    }
-    
-    // 3. Filtro Bilateral
-    if (checkBilateral && checkBilateral->isChecked()) {
-        int d = sliderBilateralD->value();
-        double sigma = sliderBilateralSigma->value();
-        current = Preprocessing::applyBilateralFilter(current, d, sigma, sigma);
-    }
-    
-    // 4. CLAHE (mejora de contraste)
-    if (checkCLAHE && checkCLAHE->isChecked()) {
-        double clipLimit = sliderCLAHEClip->value() / 10.0;
-        int tileSize = sliderCLAHETile->value();
-        current = Preprocessing::applyCLAHE(current, clipLimit, cv::Size(tileSize, tileSize));
-    }
-    
-    // Guardar resultado en el contexto
-    sliceContext.preprocessed = current;
     
     // Actualizar la visualización
     updatePreprocessingDisplay();
@@ -1792,8 +1884,8 @@ void MainWindow::onFilterChanged()
 void MainWindow::onPresetLungs()
 {
     // Preset optimizado para pulmones (basado en pipeline_pulmones.cpp)
+    // NOTA: pipeline_pulmones.cpp NO usa preprocesamiento, solo CLAHE para visualización
     
-    // Bloquear señales temporalmente para evitar múltiples actualizaciones
     bool prevState = blockSignals(true);
     
     // Desactivar todos los filtros primero
@@ -1801,45 +1893,87 @@ void MainWindow::onPresetLungs()
     if (checkMedian) checkMedian->setChecked(false);
     if (checkBilateral) checkBilateral->setChecked(false);
     if (checkCLAHE) checkCLAHE->setChecked(false);
+    if (checkDnCNN) checkDnCNN->setChecked(false);
     
-    // Configurar filtros óptimos para pulmones
-    // Filtro Gaussiano suave para reducir ruido sin perder detalles
-    if (checkGaussian && sliderGaussianKernel) {
-        checkGaussian->setChecked(true);
-        sliderGaussianKernel->setValue(3); // Kernel pequeño
-    }
+    // Configuración óptima para pulmones:
+    // - Solo CLAHE para mejorar contraste aire-tejido
+    // - SIN bilateral: la segmentación por HU es suficientemente precisa
     
-    // Filtro Mediana para ruido de sal y pimienta
-    if (checkMedian && sliderMedianKernel) {
-        checkMedian->setChecked(true);
-        sliderMedianKernel->setValue(3); // Kernel pequeño
-    }
-    
-    // CLAHE moderado para mejorar contraste pulmonar
     if (checkCLAHE && sliderCLAHEClip && sliderCLAHETile) {
         checkCLAHE->setChecked(true);
-        sliderCLAHEClip->setValue(20); // 2.0 clip limit
-        sliderCLAHETile->setValue(8);  // 8x8 tiles
+        sliderCLAHEClip->setValue(20);  // 2.0 clip limit (moderado)
+        sliderCLAHETile->setValue(8);   // 8x8 tiles
     }
     
     blockSignals(prevState);
-    
-    // Aplicar cambios
     onFilterChanged();
     
-    lblStatus->setText("Preset 'Pulmones Óptimo' aplicado");
+    lblStatus->setText("🫁 Preset 'Pulmones Óptimo' aplicado: CLAHE únicamente");
 }
 
 void MainWindow::onPresetBones()
 {
-    // Por implementar
-    lblStatus->setText("Preset 'Huesos Óptimo' - Por implementar");
+    // Preset optimizado para huesos (basado en pipeline_huesos.cpp)
+    
+    bool prevState = blockSignals(true);
+    
+    // Desactivar todos los filtros primero
+    if (checkGaussian) checkGaussian->setChecked(false);
+    if (checkMedian) checkMedian->setChecked(false);
+    if (checkBilateral) checkBilateral->setChecked(false);
+    if (checkCLAHE) checkCLAHE->setChecked(false);
+    if (checkDnCNN) checkDnCNN->setChecked(false);
+    
+    // Configuración óptima para huesos:
+    // - Mediana para eliminar ruido sin perder bordes duros
+    // - CLAHE fuerte para realzar estructuras óseas
+    
+    if (checkMedian && sliderMedianKernel) {
+        checkMedian->setChecked(true);
+        sliderMedianKernel->setValue(5); // Kernel moderado
+    }
+    
+    if (checkCLAHE && sliderCLAHEClip && sliderCLAHETile) {
+        checkCLAHE->setChecked(true);
+        sliderCLAHEClip->setValue(30);  // 3.0 clip limit (fuerte para huesos)
+        sliderCLAHETile->setValue(8);   // 8x8 tiles
+    }
+    
+    blockSignals(prevState);
+    onFilterChanged();
+    
+    lblStatus->setText("Preset 'Huesos Óptimo' aplicado: Mediana + CLAHE fuerte");
 }
 
 void MainWindow::onPresetSoftTissue()
 {
-    // Por implementar
-    lblStatus->setText("Preset 'Tejido Blando Óptimo' - Por implementar");
+    // Preset optimizado para aorta/arterias (basado en pipeline_aorta.cpp)
+    // NOTA: pipeline_aorta.cpp usa DnCNN opcional, no filtros tradicionales
+    
+    bool prevState = blockSignals(true);
+    
+    // Desactivar todos los filtros primero
+    if (checkGaussian) checkGaussian->setChecked(false);
+    if (checkMedian) checkMedian->setChecked(false);
+    if (checkBilateral) checkBilateral->setChecked(false);
+    if (checkCLAHE) checkCLAHE->setChecked(false);
+    if (checkDnCNN) checkDnCNN->setChecked(false);
+    
+    // Configuración óptima para arterias/aorta:
+    // - Solo CLAHE muy suave para mejorar contraste vascular
+    // - La segmentación por HU [30-120] es muy precisa para vasos con contraste
+    // - Usar DnCNN manualmente si se necesita denoising
+    
+    if (checkCLAHE && sliderCLAHEClip && sliderCLAHETile) {
+        checkCLAHE->setChecked(true);
+        sliderCLAHEClip->setValue(15);  // 1.5 clip limit (suave)
+        sliderCLAHETile->setValue(8);   // 8x8 tiles
+    }
+    
+    blockSignals(prevState);
+    onFilterChanged();
+    
+    lblStatus->setText("🩸 Preset 'Aorta Óptimo' aplicado: CLAHE suave únicamente");
 }
 
 void MainWindow::onResetFilters()
@@ -1867,6 +2001,68 @@ void MainWindow::onResetFilters()
     onFilterChanged();
     
     lblStatus->setText("Filtros reseteados a valores por defecto");
+}
+
+void MainWindow::onCompareWithDnCNN()
+{
+    if (!sliceContext.isValid || sliceContext.originalRaw.empty()) {
+        QMessageBox::warning(this, "Error", 
+            "No hay imagen cargada. Por favor carga un dataset primero.");
+        return;
+    }
+    
+    if (!dncnnDenoiser || !dncnnDenoiser->isLoaded()) {
+        QMessageBox::warning(this, "Error", 
+            "El modelo DnCNN no está cargado.");
+        return;
+    }
+    
+    // Obtener imagen original normalizada
+    cv::Mat original8bit = Bridge::normalize16to8bit(sliceContext.originalRaw);
+    
+    // Aplicar DnCNN
+    Denoising::DenoisingComparison comparison = 
+        Denoising::compareWithAndWithoutDenoising(original8bit, *dncnnDenoiser);
+    
+    // Crear visualización de comparación
+    cv::Mat visualComparison = Denoising::visualizeComparison(comparison);
+    
+    // Mostrar en ventana modal
+    QDialog *comparisonDialog = new QDialog(this);
+    comparisonDialog->setWindowTitle("Comparación: DnCNN vs Original");
+    comparisonDialog->resize(visualComparison.cols + 40, visualComparison.rows + 120);
+    
+    QVBoxLayout *layout = new QVBoxLayout(comparisonDialog);
+    
+    // Label con la imagen
+    QLabel *imageLabel = new QLabel();
+    QImage qImage = cvMatToQImage(visualComparison);
+    imageLabel->setPixmap(QPixmap::fromImage(qImage));
+    layout->addWidget(imageLabel);
+    
+    // Métricas
+    QLabel *metricsLabel = new QLabel(
+        QString("<b>Métricas de Denoising:</b><br>"
+                "PSNR: %1 dB<br>"
+                "SNR: %2 dB<br>"
+                "Tiempo de procesamiento: %3 ms")
+        .arg(QString::number(comparison.psnr, 'f', 2))
+        .arg(QString::number(comparison.snr, 'f', 2))
+        .arg(QString::number(comparison.processingTime, 'f', 2))
+    );
+    metricsLabel->setStyleSheet("QLabel { font-size: 11pt; padding: 10px; background-color: #f0f0f0; }");
+    layout->addWidget(metricsLabel);
+    
+    // Botón cerrar
+    QPushButton *closeBtn = new QPushButton("Cerrar");
+    connect(closeBtn, &QPushButton::clicked, comparisonDialog, &QDialog::accept);
+    layout->addWidget(closeBtn);
+    
+    comparisonDialog->exec();
+    
+    lblStatus->setText(QString("Comparación DnCNN: PSNR=%1dB, SNR=%2dB")
+                      .arg(comparison.psnr, 0, 'f', 1)
+                      .arg(comparison.snr, 0, 'f', 1));
 }
 
 // ========== MÉTODOS DE SEGMENTACIÓN ==========
@@ -1922,25 +2118,107 @@ void MainWindow::applySegmentation()
         regions = filteredRegions;
     }
     
-    // Ordenar por área (mayor a menor) y tomar solo las 2 más grandes para pulmones
+    // Ordenar por área (mayor a menor)
     std::sort(regions.begin(), regions.end(), 
               [](const Segmentation::SegmentedRegion& a, const Segmentation::SegmentedRegion& b) {
                   return a.area > b.area;
               });
     
-    // Limitar a las 2 regiones más grandes (pulmones típicamente)
-    if (regions.size() > 2) {
-        regions.resize(2);
+    // Determinar tipo de órgano según rango HU (usar variables ya declaradas)
+    bool esPulmones = (minHU <= -400 && maxHU <= -100);  // Aire/pulmones: [-1000, -400]
+    bool esAorta = (minHU >= 20 && maxHU <= 150);        // Vasos con contraste: [30, 120]
+    bool esHuesos = (minHU >= 150);                      // Huesos: [200, 1000]
+    
+    // FILTRADO ANATÓMICO ESPECÍFICO PARA AORTA (como en pipeline_aorta.cpp)
+    if (esAorta && !regions.empty()) {
+        cv::Point2d imgCenter(imageForSegmentation.cols / 2.0, imageForSegmentation.rows / 2.0);
+        
+        std::vector<Segmentation::SegmentedRegion> filteredAorta;
+        for (const auto& region : regions) {
+            double distX = std::abs(region.centroid.x - imgCenter.x);
+            double distY = region.centroid.y - imgCenter.y;
+            double distTotal = cv::norm(region.centroid - imgCenter);
+            
+            // Filtros anatómicos (de pipeline_aorta.cpp):
+            bool esCentral = (distX < 70);      // Debe estar cerca del centro horizontal
+            bool esAnterior = (distY < 20);     // Debe estar en parte anterior (arriba del centro)
+            bool esMediano = (distTotal < 100); // No muy lejos del centro
+            bool tamanioOk = (region.area >= 300 && region.area <= 5000); // Tamaño apropiado
+            
+            if (esCentral && esAnterior && esMediano && tamanioOk) {
+                filteredAorta.push_back(region);
+            }
+        }
+        
+        // Si encontramos candidatos, aplicar procesamiento morfológico y quedarnos con el más grande
+        if (!filteredAorta.empty()) {
+            // Combinar máscaras
+            cv::Mat combinedMask = cv::Mat::zeros(imageForSegmentation.size(), CV_8U);
+            for (const auto& r : filteredAorta) {
+                cv::bitwise_or(combinedMask, r.mask, combinedMask);
+            }
+            
+            // Morfología: cierre + dilatación
+            cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+            cv::morphologyEx(combinedMask, combinedMask, cv::MORPH_CLOSE, kernel);
+            cv::dilate(combinedMask, combinedMask, kernel);
+            
+            // Re-segmentar componentes conectados
+            auto finalComponents = Segmentation::findConnectedComponents(combinedMask, 500);
+            
+            if (!finalComponents.empty()) {
+                // Ordenar por área y tomar el más grande
+                std::sort(finalComponents.begin(), finalComponents.end(),
+                    [](const auto& a, const auto& b) { return a.area > b.area; });
+                
+                auto& largest = finalComponents[0];
+                double dist = cv::norm(largest.centroid - imgCenter);
+                
+                // Verificar que el más grande está cerca del centro
+                if (dist < 120.0) {
+                    regions.clear();
+                    regions.push_back(largest);
+                } else {
+                    regions.clear(); // No se encontró aorta válida
+                }
+            }
+        } else {
+            regions.clear(); // No se encontraron regiones que cumplan criterios anatómicos
+        }
     }
     
-    // Asignar etiquetas específicas
-    for (size_t i = 0; i < regions.size(); i++) {
-        if (i == 0) {
-            regions[i].label = "Pulmon Derecho";
-        } else if (i == 1) {
-            regions[i].label = "Pulmon Izquierdo";
+    // Limitar número de regiones según el órgano (solo si NO es aorta, ya filtrada arriba)
+    if (!esAorta) {
+        size_t maxRegions = esPulmones ? 2 : 20; // Pulmones: 2, Huesos: múltiples
+        if (regions.size() > maxRegions) {
+            regions.resize(maxRegions);
         }
-        regions[i].color = cv::Scalar(255, 0, 0); // Azul
+    }
+    
+    // Asignar etiquetas y colores específicos
+    for (size_t i = 0; i < regions.size(); i++) {
+        if (esPulmones) {
+            regions[i].label = (i == 0) ? "Pulmon Derecho" : "Pulmon Izquierdo";
+            regions[i].color = cv::Scalar(255, 0, 0); // Azul
+        } else if (esAorta) {
+            regions[i].label = "Aorta"; // Solo 1 estructura después del filtrado anatómico
+            regions[i].color = cv::Scalar(0, 0, 255); // Rojo
+        } else if (esHuesos) {
+            regions[i].label = "Hueso_" + std::to_string(i+1);
+            regions[i].color = cv::Scalar(0, 255, 0); // Verde
+        } else {
+            regions[i].label = "Region_" + std::to_string(i+1);
+            regions[i].color = cv::Scalar(255, 255, 0); // Cian
+        }
+    }
+    
+    // Guardar regiones en el vector correspondiente según el tipo de órgano
+    if (esPulmones) {
+        sliceContext.pulmonesRegions = regions;
+    } else if (esAorta) {
+        sliceContext.aortaRegions = regions;
+    } else if (esHuesos) {
+        sliceContext.huesosRegions = regions;
     }
     
     // Crear imagen de visualización a color
@@ -2091,14 +2369,65 @@ void MainWindow::onSegPresetLungs()
 
 void MainWindow::onSegPresetBones()
 {
-    // Por implementar
-    lblStatus->setText("Preset 'Huesos Óptimo' - Por implementar");
+    // Preset optimizado para huesos
+    
+    // Bloquear señales temporalmente
+    bool prevState = blockSignals(true);
+    
+    // Configurar umbrales HU para huesos (rango 200-1000 HU)
+    // El tejido óseo tiene alta densidad, típicamente > 200 HU
+    if (sliderMinHU) sliderMinHU->setValue(200);
+    if (sliderMaxHU) sliderMaxHU->setValue(1000);
+    
+    // Configurar filtros de área para huesos
+    // Las estructuras óseas son grandes (1000-50000 px típicamente)
+    if (sliderMinArea) sliderMinArea->setValue(1000);
+    if (sliderMaxArea) sliderMaxArea->setValue(50000);
+    
+    // Activar opciones de visualización
+    if (checkShowContours) checkShowContours->setChecked(true);
+    if (checkShowOverlay) checkShowOverlay->setChecked(true);
+    if (checkShowLabels) checkShowLabels->setChecked(false);
+    
+    // Desactivar filtrado de bordes (queremos detectar costillas y vértebras en bordes)
+    if (checkFilterBorder) checkFilterBorder->setChecked(false);
+    
+    blockSignals(prevState);
+    
+    // Ejecutar segmentación
+    onSegmentationChanged();
+    lblStatus->setText("🦴 Preset 'Huesos Óptimo' aplicado: HU[200,1000], Área[1000,50000]");
 }
 
-void MainWindow::onSegPresetSoftTissue()
+void MainWindow::onSegPresetAorta()
 {
-    // Por implementar
-    lblStatus->setText("Preset 'Tejido Blando Óptimo' - Por implementar");
+    // Preset optimizado para aorta (basado en pipeline_aorta.cpp)
+    
+    // Bloquear señales temporalmente
+    bool prevState = blockSignals(true);
+    
+    // Configurar umbrales HU para arterias (rango 30-120 HU)
+    // La aorta tiene densidad similar al tejido blando con contraste
+    if (sliderMinHU) sliderMinHU->setValue(30);
+    if (sliderMaxHU) sliderMaxHU->setValue(120);
+    
+    // Configurar filtros de área para aorta
+    // La aorta es una estructura mediana (200-5000 px típicamente)
+    if (sliderMinArea) sliderMinArea->setValue(200);
+    if (sliderMaxArea) sliderMaxArea->setValue(8000);
+    
+    // Activar opciones de visualización
+    if (checkShowContours) checkShowContours->setChecked(true);
+    if (checkShowOverlay) checkShowOverlay->setChecked(true);
+    if (checkShowLabels) checkShowLabels->setChecked(false); // Sin etiquetas para arterias
+    if (checkFilterBorder) checkFilterBorder->setChecked(false); // No filtrar borde para aorta
+    
+    blockSignals(prevState);
+    
+    // Aplicar cambios
+    onSegmentationChanged();
+    
+    lblStatus->setText("🩸 Preset 'Aorta Óptimo' aplicado: HU[30,120], Área[200,8000]");
 }
 
 void MainWindow::onResetSegmentation()
@@ -2366,6 +2695,47 @@ void MainWindow::onMorphPresetBones()
     }
 }
 
+void MainWindow::onMorphPresetAorta()
+{
+    if (!checkClosing || !checkDilate) {
+        return;
+    }
+
+    // Bloquear señales
+    bool prevState = blockSignals(true);
+
+    // Desactivar operaciones no necesarias
+    if (checkErode) checkErode->setChecked(false);
+    if (checkOpening) checkOpening->setChecked(false);
+    if (checkGradient) checkGradient->setChecked(false);
+    if (checkFillHoles) checkFillHoles->setChecked(false);
+    if (checkRemoveBorder) checkRemoveBorder->setChecked(false);
+
+    // Configuración óptima para aorta (basado en pipeline_aorta.cpp)
+    // Closing para unir fragmentos de la aorta
+    checkClosing->setChecked(true);
+    if (sliderClosingKernel) sliderClosingKernel->setValue(5);
+
+    // Dilatación para expandir ligeramente la máscara
+    if (checkDilate) {
+        checkDilate->setChecked(true);
+        if (sliderDilateKernel) sliderDilateKernel->setValue(5);
+        if (sliderDilateIter) sliderDilateIter->setValue(1);
+    }
+
+    // Kernel elíptico (apropiado para estructuras circulares como arterias)
+    if (comboKernelShape) comboKernelShape->setCurrentIndex(0); // Elipse
+
+    blockSignals(prevState);
+
+    // Aplicar cambios
+    onMorphologyChanged();
+    
+    if (lblStatus) {
+        lblStatus->setText("🩸 Preset 'Aorta Óptimo' aplicado: Closing(5) + Dilate(5x1)");
+    }
+}
+
 void MainWindow::onResetMorphology()
 {
     // Bloquear señales
@@ -2434,13 +2804,17 @@ void MainWindow::updateVisualization()
     // Obtener opacidad (0-100 -> 0.0-1.0)
     double alpha = (sliderOpacity ? sliderOpacity->value() : 40) / 100.0;
 
-    // 3. Aplicar capas de órganos
+    // 3. Aplicar capas de órganos desde vectores almacenados
     
     // CAPA: Pulmones (Azul)
     if (chkShowLungs && chkShowLungs->isChecked() && 
-        !sliceContext.segmentationMask.empty()) {
+        !sliceContext.pulmonesRegions.empty()) {
         
-        cv::Mat lungsMask = sliceContext.segmentationMask.clone();
+        // Crear máscara combinando todas las regiones de pulmones
+        cv::Mat lungsMask = cv::Mat::zeros(imgColor.size(), CV_8U);
+        for (const auto& region : sliceContext.pulmonesRegions) {
+            lungsMask |= region.mask;
+        }
         
         if (useFillStyle) {
             // Relleno sólido con blend
@@ -2455,18 +2829,50 @@ void MainWindow::updateVisualization()
         }
     }
 
-    // CAPA: Huesos (Verde) - Deshabilitado por ahora
-    if (chkShowBones && chkShowBones->isChecked() && chkShowBones->isEnabled()) {
-        // TODO: Implementar cuando tengamos segmentación de huesos
-        // cv::Mat bonesMask = ...;
-        // overlay.setTo(cv::Scalar(0, 255, 0), bonesMask); // BGR: Verde
+    // CAPA: Huesos (Verde)
+    if (chkShowBones && chkShowBones->isChecked() && chkShowBones->isEnabled() &&
+        !sliceContext.huesosRegions.empty()) {
+        
+        // Crear máscara combinando todas las regiones de huesos
+        cv::Mat bonesMask = cv::Mat::zeros(imgColor.size(), CV_8U);
+        for (const auto& region : sliceContext.huesosRegions) {
+            bonesMask |= region.mask;
+        }
+        
+        if (useFillStyle) {
+            // Relleno sólido con blend
+            overlay.setTo(cv::Scalar(0, 255, 0), bonesMask); // BGR: Verde
+            cv::addWeighted(imgColor, 1.0 - alpha, overlay, alpha, 0, finalResult);
+            imgColor = finalResult.clone(); // Acumular para siguiente capa
+        } else {
+            // Solo contornos
+            std::vector<std::vector<cv::Point>> contours;
+            cv::findContours(bonesMask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+            cv::drawContours(finalResult, contours, -1, cv::Scalar(0, 255, 0), 3);
+        }
     }
 
-    // CAPA: Tejido Blando (Rojo) - Deshabilitado por ahora
-    if (chkShowSoftTissue && chkShowSoftTissue->isChecked() && chkShowSoftTissue->isEnabled()) {
-        // TODO: Implementar cuando tengamos segmentación de tejido blando
-        // cv::Mat softTissueMask = ...;
-        // overlay.setTo(cv::Scalar(0, 0, 255), softTissueMask); // BGR: Rojo
+    // CAPA: Aorta/Tejido Blando (Rojo)
+    if (chkShowSoftTissue && chkShowSoftTissue->isChecked() && chkShowSoftTissue->isEnabled() &&
+        !sliceContext.aortaRegions.empty()) {
+        
+        // Crear máscara combinando todas las regiones de aorta
+        cv::Mat aortaMask = cv::Mat::zeros(imgColor.size(), CV_8U);
+        for (const auto& region : sliceContext.aortaRegions) {
+            aortaMask |= region.mask;
+        }
+        
+        if (useFillStyle) {
+            // Relleno sólido con blend
+            overlay.setTo(cv::Scalar(0, 0, 255), aortaMask); // BGR: Rojo
+            cv::addWeighted(imgColor, 1.0 - alpha, overlay, alpha, 0, finalResult);
+            imgColor = finalResult.clone(); // Acumular para siguiente capa
+        } else {
+            // Solo contornos
+            std::vector<std::vector<cv::Point>> contours;
+            cv::findContours(aortaMask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+            cv::drawContours(finalResult, contours, -1, cv::Scalar(0, 0, 255), 3);
+        }
     }
 
     // 4. Mostrar resultado en el QLabel

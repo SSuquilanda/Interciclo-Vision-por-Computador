@@ -103,7 +103,7 @@ add_executable(MainPipeline src/mainpipeline.cpp ${COMMON_SOURCES})
 # Pipelines especializados por órgano
 add_executable(PipelinePulmones src/pipeline_pulmones.cpp ${COMMON_SOURCES})
 add_executable(PipelineHuesos src/pipeline_huesos.cpp ${COMMON_SOURCES})
-add_executable(PipelineArterias src/pipeline_arterias.cpp ${COMMON_SOURCES})
+add_executable(PipelineAorta src/pipeline_aorta.cpp ${COMMON_SOURCES})
 
 # Enlazar bibliotecas para todos los ejecutables
 if(UNIX AND NOT APPLE)
@@ -160,12 +160,12 @@ if(UNIX AND NOT APPLE)
     )
     target_include_directories(PipelineHuesos PRIVATE ${GST_INCLUDE_DIRS})
     
-    target_link_libraries(PipelineArterias PRIVATE
+    target_link_libraries(PipelineAorta PRIVATE
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
         ${GST_LIBRARIES}
     )
-    target_include_directories(PipelineArterias PRIVATE ${GST_INCLUDE_DIRS})
+    target_include_directories(PipelineAorta PRIVATE ${GST_INCLUDE_DIRS})
 else()
     # OpenCV e ITK en Windows
     target_link_libraries(VisionApp PRIVATE
@@ -206,7 +206,7 @@ else()
         ${ITK_LIBRARIES}
     )
     
-    target_link_libraries(PipelineArterias PRIVATE
+    target_link_libraries(PipelineAorta PRIVATE
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
     )
@@ -221,7 +221,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(MainPipeline PRIVATE -Wall -Wextra)
     target_compile_options(PipelinePulmones PRIVATE -Wall -Wextra)
     target_compile_options(PipelineHuesos PRIVATE -Wall -Wextra)
-    target_compile_options(PipelineArterias PRIVATE -Wall -Wextra)
+    target_compile_options(PipelineAorta PRIVATE -Wall -Wextra)
 elseif(MSVC)
     target_compile_options(VisionApp PRIVATE /W4)
     target_compile_options(ExportSlices PRIVATE /W4)
@@ -230,7 +230,7 @@ elseif(MSVC)
     target_compile_options(MainPipeline PRIVATE /W4)
     target_compile_options(PipelinePulmones PRIVATE /W4)
     target_compile_options(PipelineHuesos PRIVATE /W4)
-    target_compile_options(PipelineArterias PRIVATE /W4)
+    target_compile_options(PipelineAorta PRIVATE /W4)
 endif()
 
 message(STATUS "   Sistema: ${CMAKE_SYSTEM_NAME}")
