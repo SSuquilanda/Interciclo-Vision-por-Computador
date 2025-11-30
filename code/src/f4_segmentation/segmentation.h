@@ -129,6 +129,14 @@ std::vector<SegmentedRegion> findConnectedComponents(const cv::Mat& binaryImage,
 std::vector<SegmentedRegion> segmentLungs(const cv::Mat& image, 
                                           const SegmentationParams& params);
 
+
+/**
+ * @brief Segmenta la Aorta usando criterios geométricos y de intensidad
+ * @param image Imagen CT (Idealmente 16-bit para usar HU exactos, o 8-bit ajustando umbrales)
+ * @return Vector con la región de la aorta detectada
+ */
+std::vector<SegmentedRegion> segmentAorta(const cv::Mat& image);                                      
+
 /**
  * @brief Segmenta el corazón usando valores HU típicos (0 a 100)
  * @param image Imagen CT preprocesada

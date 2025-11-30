@@ -7,21 +7,16 @@
 
 namespace Denoising {
 
-// ============================================================================
-// CLASE DnCNNDenoiser
-// ============================================================================
-
 DnCNNDenoiser::DnCNNDenoiser() : modelLoaded(false) {}
 
 bool DnCNNDenoiser::loadModel(const std::string& onnxPath) {
     try {
-        std::cout << "🔄 Cargando modelo DnCNN: " << onnxPath << std::endl;
+        std::cout << "Cargando modelo DnCNN: " << onnxPath << std::endl;
         
-        // Cargar modelo ONNX con OpenCV DNN
         net = cv::dnn::readNetFromONNX(onnxPath);
         
         if (net.empty()) {
-            std::cerr << "❌ Error: No se pudo cargar el modelo ONNX" << std::endl;
+            std::cerr << "Error: No se pudo cargar el modelo ONNX" << std::endl;
             return false;
         }
         
@@ -32,11 +27,11 @@ bool DnCNNDenoiser::loadModel(const std::string& onnxPath) {
         modelLoaded = true;
         modelPath = onnxPath;
         
-        std::cout << "✅ Modelo DnCNN cargado exitosamente" << std::endl;
+        std::cout << "Modelo DnCNN cargado exitosamente" << std::endl;
         return true;
         
     } catch (const cv::Exception& e) {
-        std::cerr << "❌ Excepción OpenCV: " << e.what() << std::endl;
+        std::cerr << "Excepcion OpenCV: " << e.what() << std::endl;
         modelLoaded = false;
         return false;
     }
@@ -44,7 +39,7 @@ bool DnCNNDenoiser::loadModel(const std::string& onnxPath) {
 
 cv::Mat DnCNNDenoiser::denoise(const cv::Mat& noisyImage) {
     if (!modelLoaded) {
-        std::cerr << "⚠ Advertencia: Modelo no cargado, devolviendo imagen original" << std::endl;
+        std::cerr << "Advertencia: Modelo no cargado, devolviendo imagen original" << std::endl;
         return noisyImage.clone();
     }
     
@@ -81,7 +76,7 @@ cv::Mat DnCNNDenoiser::denoise(const cv::Mat& noisyImage) {
         
         // 4. Inferencia
         net.setInput(blob);
-        cv::Mat outputBlob = net.forward();  // ← Aquí está la salida del modelo
+        cv::Mat outputBlob = net.forward();
         
         // 5. CORRECCIÓN CRÍTICA: Extraer imagen del blob de SALIDA
         // El blob tiene formato NCHW (1 x 1 x H x W)
@@ -127,16 +122,16 @@ cv::Mat DnCNNDenoiser::denoise(const cv::Mat& noisyImage) {
         return result;
         
     } catch (const cv::Exception& e) {
-        std::cerr << "❌ Error en denoising: " << e.what() << std::endl;
+        std::cerr << "Error en denoising: " << e.what() << std::endl;
         return noisyImage.clone();
     }
 }
 
 std::string DnCNNDenoiser::getInfo() const {
     if (!modelLoaded) {
-        return "❌ Modelo no cargado";
+        return "Modelo no cargado";
     }
-    return "✅ DnCNN | Path: " + modelPath + " | Backend: CPU";
+    return "DnCNN | Path: " + modelPath + " | Backend: CPU";
 }
 
 // ============================================================================
@@ -151,7 +146,7 @@ DenoisingComparison compareWithAndWithoutDenoising(
     result.original = noisyImage.clone();
     
     if (!denoiser.isLoaded()) {
-        std::cerr << "❌ Error: Modelo no cargado" << std::endl;
+        std::cerr << "Error: Modelo no cargado" << std::endl;
         result.denoised = noisyImage.clone();
         return result;
     }
@@ -168,7 +163,7 @@ DenoisingComparison compareWithAndWithoutDenoising(
     result.psnr = calculatePSNR(noisyImage, result.denoised);
     result.snr = calculateSNR(result.denoised);
     
-    std::cout << "\n📊 Comparación Denoising:" << std::endl;
+    std::cout << "\nComparacion Denoising:" << std::endl;
     std::cout << "   PSNR: " << result.psnr << " dB" << std::endl;
     std::cout << "   SNR: " << result.snr << " dB" << std::endl;
     std::cout << "   Tiempo: " << result.processingTime << " ms\n" << std::endl;

@@ -387,4 +387,79 @@ void saveSegmentationMasks(const std::vector<SegmentedRegion>& regions,
     }
 }
 
+// ... (includes y funciones anteriores)
+
+std::vector<SegmentedRegion> segmentAorta(const cv::Mat& image) {
+    std::vector<SegmentedRegion> aortaRegions;
+    cv::Point2d imgCenter(image.cols / 2.0, image.rows / 2.0);
+
+    // 1. Umbralización (Rango de contraste de vasos: 30 a 120 HU)
+    // Nota: Si usas la imagen preprocesada (8-bit), estos valores podrían necesitar ajuste.
+    // Si usas originalRaw (16-bit), estos valores son exactos.
+    cv::Mat mask = thresholdByRange(image, 30, 120);
+
+    // 2. Segmentación inicial (Candidatos)
+    SegmentationParams params;
+    params.minArea = 200;
+    params.maxArea = 8000;
+    params.visualColor = cv::Scalar(0, 255, 0); // Verde
+    
+    // Reutilizamos findConnectedComponents para obtener candidatos básicos
+    auto candidates = findConnectedComponents(mask, params.minArea);
+
+    // 3. Filtros Anatómicos (La lógica de tu compañera)
+    std::vector<SegmentedRegion> filteredArteries;
+    for (const auto& region : candidates) {
+        if (region.area > params.maxArea) continue;
+
+        double distX = std::abs(region.centroid.x - imgCenter.x);
+        double distY = region.centroid.y - imgCenter.y; // + abajo, - arriba
+        double distTotal = cv::norm(region.centroid - imgCenter);
+        
+        // Criterios: Central, Anterior (arriba del centro), y tamaño adecuado
+        bool esCentral = (distX < 70);
+        bool esAnterior = (distY < 20); 
+        bool esMediano = (distTotal < 100);
+        
+        if (esCentral && esAnterior && esMediano) {
+            filteredArteries.push_back(region);
+        }
+    }
+
+    // 4. Procesamiento Morfológico y Selección Final
+    if (!filteredArteries.empty()) {
+        // Combinar candidatos en una sola máscara para morfología
+        cv::Mat combinedMask = cv::Mat::zeros(image.size(), CV_8U);
+        for (const auto& r : filteredArteries) {
+            cv::bitwise_or(combinedMask, r.mask, combinedMask);
+        }
+        
+        // Cierre + Dilatación (conecta fragmentos de la aorta)
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+        cv::morphologyEx(combinedMask, combinedMask, cv::MORPH_CLOSE, kernel);
+        cv::dilate(combinedMask, combinedMask, kernel);
+        
+        // Buscar el componente final más grande tras la morfología
+        auto finalComponents = findConnectedComponents(combinedMask, 200);
+        
+        if (!finalComponents.empty()) {
+            // Ordenar por área (mayor a menor)
+            std::sort(finalComponents.begin(), finalComponents.end(),
+                [](const auto& a, const auto& b) { return a.area > b.area; });
+            
+            // Tomar el más grande que siga estando centrado
+            auto& largest = finalComponents[0];
+            double dist = cv::norm(largest.centroid - imgCenter);
+            
+            if (dist < 120.0) {
+                largest.label = "Aorta / Arterias";
+                largest.color = cv::Scalar(0, 255, 0); // Verde
+                aortaRegions.push_back(largest);
+            }
+        }
+    }
+    
+    return aortaRegions;
+    }
+
 } // namespace Segmentation

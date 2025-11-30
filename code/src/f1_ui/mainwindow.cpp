@@ -137,7 +137,7 @@ MainWindow::MainWindow(QWidget *parent)
     
     if (dncnnDenoiser->loadModel(modelPath)) {
         if (lblDnCNNStatus) {
-            lblDnCNNStatus->setText("Estado: Modelo cargado ✓");
+            lblDnCNNStatus->setText("Estado: Modelo cargado");
             lblDnCNNStatus->setStyleSheet("QLabel { color: green; font-weight: bold; padding: 5px; }");
         }
         if (btnCompareWithDnCNN) {
@@ -146,7 +146,7 @@ MainWindow::MainWindow(QWidget *parent)
         std::cout << "✓ Modelo DnCNN cargado exitosamente desde: " << modelPath << std::endl;
     } else {
         if (lblDnCNNStatus) {
-            lblDnCNNStatus->setText("Estado: Modelo no encontrado ✗");
+            lblDnCNNStatus->setText("Estado: Modelo no encontrado");
             lblDnCNNStatus->setStyleSheet("QLabel { color: red; font-weight: bold; padding: 5px; }");
         }
         if (checkDnCNN) {
@@ -474,7 +474,7 @@ QWidget* MainWindow::createPreprocessingTab()
     QGroupBox *presetGroup = new QGroupBox("Presets Optimizados");
     QVBoxLayout *presetLayout = new QVBoxLayout(presetGroup);
     
-    btnPresetLungs = new QPushButton("🫁 Pulmones Óptimo");
+    btnPresetLungs = new QPushButton("dddd Pulmones Óptimo");
     btnPresetLungs->setMinimumHeight(35);
     btnPresetLungs->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; }");
     connect(btnPresetLungs, &QPushButton::clicked, this, &MainWindow::onPresetLungs);
@@ -701,7 +701,7 @@ QWidget* MainWindow::createSegmentationTab()
     QGroupBox *presetGroup = new QGroupBox("Presets de Segmentación");
     QVBoxLayout *presetLayout = new QVBoxLayout(presetGroup);
     
-    btnSegPresetLungs = new QPushButton("🫁 Pulmones Óptimo");
+    btnSegPresetLungs = new QPushButton("dddd Pulmones Óptimo");
     btnSegPresetLungs->setMinimumHeight(35);
     btnSegPresetLungs->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; }");
     connect(btnSegPresetLungs, &QPushButton::clicked, this, &MainWindow::onSegPresetLungs);
@@ -905,7 +905,7 @@ QWidget* MainWindow::createMorphologyTab()
 
     // Preset buttons
     QHBoxLayout *presetLayout = new QHBoxLayout();
-    btnMorphPresetLungs = new QPushButton("🫁 Pulmones Óptimo");
+    btnMorphPresetLungs = new QPushButton("dddd Pulmones Óptimo");
     btnMorphPresetLungs->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; }");
     
     btnMorphPresetBones = new QPushButton("🦴 Huesos Óptimo");
@@ -1908,7 +1908,7 @@ void MainWindow::onPresetLungs()
     blockSignals(prevState);
     onFilterChanged();
     
-    lblStatus->setText("🫁 Preset 'Pulmones Óptimo' aplicado: CLAHE únicamente");
+    lblStatus->setText("dddd Preset 'Pulmones Óptimo' aplicado: CLAHE únicamente");
 }
 
 void MainWindow::onPresetBones()
@@ -2196,29 +2196,41 @@ void MainWindow::applySegmentation()
     }
     
     // Asignar etiquetas y colores específicos
-    for (size_t i = 0; i < regions.size(); i++) {
-        if (esPulmones) {
-            regions[i].label = (i == 0) ? "Pulmon Derecho" : "Pulmon Izquierdo";
-            regions[i].color = cv::Scalar(255, 0, 0); // Azul
-        } else if (esAorta) {
-            regions[i].label = "Aorta"; // Solo 1 estructura después del filtrado anatómico
-            regions[i].color = cv::Scalar(0, 0, 255); // Rojo
-        } else if (esHuesos) {
-            regions[i].label = "Hueso_" + std::to_string(i+1);
-            regions[i].color = cv::Scalar(0, 255, 0); // Verde
-        } else {
-            regions[i].label = "Region_" + std::to_string(i+1);
-            regions[i].color = cv::Scalar(255, 255, 0); // Cian
-        }
-    }
+    // IMPORTANTE: Si ya existen regiones clasificadas de huesos (del pipeline especializado),
+    // preservar esa clasificación en lugar de sobrescribirla con etiquetas genéricas
+    bool preservarClasificacionHuesos = esHuesos && !sliceContext.huesosRegions.empty() &&
+                                        (sliceContext.huesosRegions[0].label.find("Columna") != std::string::npos ||
+                                         sliceContext.huesosRegions[0].label.find("Costilla") != std::string::npos);
     
-    // Guardar regiones en el vector correspondiente según el tipo de órgano
-    if (esPulmones) {
-        sliceContext.pulmonesRegions = regions;
-    } else if (esAorta) {
-        sliceContext.aortaRegions = regions;
-    } else if (esHuesos) {
-        sliceContext.huesosRegions = regions;
+    if (preservarClasificacionHuesos) {
+        // Ya existe una clasificación anatómica detallada, mantenerla
+        regions = sliceContext.huesosRegions;
+    } else {
+        // Asignar etiquetas genéricas para nueva segmentación
+        for (size_t i = 0; i < regions.size(); i++) {
+            if (esPulmones) {
+                regions[i].label = (i == 0) ? "Pulmon Derecho" : "Pulmon Izquierdo";
+                regions[i].color = cv::Scalar(255, 0, 0); // Azul
+            } else if (esAorta) {
+                regions[i].label = "Aorta"; // Solo 1 estructura después del filtrado anatómico
+                regions[i].color = cv::Scalar(0, 0, 255); // Rojo
+            } else if (esHuesos) {
+                regions[i].label = "Hueso_" + std::to_string(i+1);
+                regions[i].color = cv::Scalar(0, 255, 0); // Verde
+            } else {
+                regions[i].label = "Region_" + std::to_string(i+1);
+                regions[i].color = cv::Scalar(255, 255, 0); // Cian
+            }
+        }
+        
+        // Guardar regiones en el vector correspondiente según el tipo de órgano
+        if (esPulmones) {
+            sliceContext.pulmonesRegions = regions;
+        } else if (esAorta) {
+            sliceContext.aortaRegions = regions;
+        } else if (esHuesos) {
+            sliceContext.huesosRegions = regions;
+        }
     }
     
     // Crear imagen de visualización a color
@@ -2369,34 +2381,190 @@ void MainWindow::onSegPresetLungs()
 
 void MainWindow::onSegPresetBones()
 {
-    // Preset optimizado para huesos
+    // 🦴 PIPELINE ESPECIALIZADO DE HUESOS - Integración completa
+    lblStatus->setText("🦴 Iniciando Pipeline Especializado de Huesos...");
+    
+    if (sliceContext.originalRaw.empty()) {
+        lblStatus->setText("⚠️ No hay imagen cargada");
+        return;
+    }
     
     // Bloquear señales temporalmente
     bool prevState = blockSignals(true);
     
-    // Configurar umbrales HU para huesos (rango 200-1000 HU)
-    // El tejido óseo tiene alta densidad, típicamente > 200 HU
+    // ===== PASO 1: PREPROCESAMIENTO =====
+    // Aplicar filtro bilateral para preservar bordes de estructuras óseas
+    cv::Mat preprocessed = sliceContext.originalRaw.clone();
+    if (checkBilateral && checkBilateral->isChecked()) {
+        // Configurar filtro bilateral óptimo para huesos
+        if (sliderBilateralD) sliderBilateralD->setValue(9);
+        if (sliderBilateralSigma) sliderBilateralSigma->setValue(75);
+        
+        cv::Mat temp8bit = Bridge::normalize16to8bit(preprocessed);
+        cv::Mat filtered8bit;
+        cv::bilateralFilter(temp8bit, filtered8bit, 9, 75, 75);
+        filtered8bit.convertTo(preprocessed, CV_16SC1);
+    }
+    
+    // ===== PASO 2: SEGMENTACIÓN CON CLASIFICACIÓN ANATÓMICA =====
+    std::cout << "\n→ Segmentando estructuras óseas..." << std::endl;
+    
+    // Parámetros para hueso cortical y esponjoso (200-3000 HU)
+    Segmentation::SegmentationParams boneParams;
+    boneParams.minHU = 200;
+    boneParams.maxHU = 3000;
+    boneParams.minArea = 80;
+    boneParams.maxArea = 100000;
+    boneParams.visualColor = cv::Scalar(0, 0, 255);
+    
+    auto boneRegions = Segmentation::segmentOrgan(preprocessed, boneParams, "Hueso");
+    std::cout << "  Total regiones óseas detectadas: " << boneRegions.size() << std::endl;
+    
+    // ===== PASO 3: CLASIFICACIÓN ANATÓMICA =====
+    cv::Point2d imgCenter(preprocessed.cols / 2.0, preprocessed.rows / 2.0);
+    
+    std::vector<Segmentation::SegmentedRegion> costillas;
+    std::vector<Segmentation::SegmentedRegion> columna;
+    std::vector<Segmentation::SegmentedRegion> esternon;
+    std::vector<Segmentation::SegmentedRegion> otros;
+    
+    for (const auto& region : boneRegions) {
+        if (region.area < 80) continue;
+        
+        Segmentation::SegmentedRegion bone = region;
+        double distX = std::abs(region.centroid.x - imgCenter.x);
+        double distY = region.centroid.y - imgCenter.y;
+        double distTotal = cv::norm(region.centroid - imgCenter);
+        
+        double width = region.boundingBox.width;
+        double height = region.boundingBox.height;
+        double aspectRatio = (height > 0) ? (width / height) : 1.0;
+        
+        // COLUMNA: Posterior (parte inferior) y muy central horizontalmente
+        if (distX < 60 && distY > 40 && region.area > 150) {
+            bone.label = "Columna Vertebral";
+            bone.color = cv::Scalar(0, 0, 255); // Rojo
+            columna.push_back(bone);
+        }
+        // ESTERNÓN: Anterior (parte superior) y central
+        else if (distX < 60 && distY < -20 && region.area > 200) {
+            bone.label = "Esternon";
+            bone.color = cv::Scalar(0, 100, 255); // Rojo claro
+            esternon.push_back(bone);
+        }
+        // COSTILLAS: Laterales y generalmente alargadas
+        else if (distX > 60 || aspectRatio > 2.0) {
+            bone.label = "Costilla";
+            bone.color = cv::Scalar(0, 200, 255); // Amarillo/Naranja
+            costillas.push_back(bone);
+        }
+        // OTROS: Fragmentos no clasificados (filtrar centro para evitar calcificaciones)
+        else if (region.area > 300 && distTotal > 60) {
+            bone.label = "Hueso (Otro)";
+            bone.color = cv::Scalar(100, 100, 100); // Gris
+            otros.push_back(bone);
+        }
+    }
+    
+    std::cout << "  ✓ Costillas: " << costillas.size() << std::endl;
+    std::cout << "  ✓ Columna vertebral: " << columna.size() << " segmentos" << std::endl;
+    std::cout << "  ✓ Esternón: " << esternon.size() << std::endl;
+    std::cout << "  ✓ Otros: " << otros.size() << std::endl;
+    
+    // ===== PASO 4: REFINAMIENTO MORFOLÓGICO =====
+    auto refinar = [](std::vector<Segmentation::SegmentedRegion>& bones) {
+        for (auto& bone : bones) {
+            // Apertura suave para eliminar ruido
+            bone.mask = Morphology::opening(bone.mask, cv::Size(3, 3));
+            // Cierre para conectar fragmentos
+            bone.mask = Morphology::closing(bone.mask, cv::Size(3, 3));
+        }
+    };
+    
+    refinar(costillas);
+    refinar(columna);
+    refinar(esternon);
+    refinar(otros);
+    
+    // ===== PASO 5: COMBINAR Y VISUALIZAR =====
+    // Combinar todas las regiones clasificadas
+    std::vector<Segmentation::SegmentedRegion> allBones;
+    allBones.insert(allBones.end(), columna.begin(), columna.end());
+    allBones.insert(allBones.end(), esternon.begin(), esternon.end());
+    allBones.insert(allBones.end(), costillas.begin(), costillas.end());
+    allBones.insert(allBones.end(), otros.begin(), otros.end());
+    
+    // Crear máscara combinada para sliceContext
+    cv::Mat combinedMask = cv::Mat::zeros(preprocessed.size(), CV_8UC1);
+    for (const auto& bone : allBones) {
+        combinedMask |= bone.mask;
+    }
+    
+    // Actualizar contexto
+    sliceContext.segmentationMask = combinedMask;
+    sliceContext.huesosRegions = allBones;
+    
+    // Crear visualización con overlay coloreado RELLENO (como pipeline standalone)
+    cv::Mat image8bit = Bridge::normalize16to8bit(preprocessed);
+    cv::Mat imageColor = Bridge::convertToColor(image8bit);
+    cv::Mat result = imageColor.clone();
+    
+    // MÉTODO 1: Overlay con máscaras rellenas + transparencia
+    cv::Mat overlay = result.clone();
+    for (const auto& bone : allBones) {
+        // Rellenar toda la región con su color
+        overlay.setTo(bone.color, bone.mask);
+    }
+    // Combinar: 70% imagen original + 30% overlay coloreado
+    cv::addWeighted(result, 0.7, overlay, 0.3, 0, result);
+    
+    // MÉTODO 2: Dibujar contornos GRUESOS encima para mejor definición
+    for (const auto& bone : allBones) {
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(bone.mask.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        cv::drawContours(result, contours, -1, bone.color, 2);
+    }
+    
+    // Agregar leyenda
+    int y = 30;
+    cv::putText(result, "ROJO: Columna", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 255), 2);
+    y += 25;
+    cv::putText(result, "AMARILLO: Costillas", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 200, 255), 2);
+    y += 25;
+    cv::putText(result, "NARANJA: Esternon", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 100, 255), 2);
+    y += 25;
+    cv::putText(result, "GRIS: Otros", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(100, 100, 100), 2);
+    
+    sliceContext.finalOverlay = result;
+    
+    // ===== ACTUALIZAR UI =====
     if (sliderMinHU) sliderMinHU->setValue(200);
-    if (sliderMaxHU) sliderMaxHU->setValue(1000);
+    if (sliderMaxHU) sliderMaxHU->setValue(3000);
+    if (sliderMinArea) sliderMinArea->setValue(80);
+    if (sliderMaxArea) sliderMaxArea->setValue(100000);
     
-    // Configurar filtros de área para huesos
-    // Las estructuras óseas son grandes (1000-50000 px típicamente)
-    if (sliderMinArea) sliderMinArea->setValue(1000);
-    if (sliderMaxArea) sliderMaxArea->setValue(50000);
-    
-    // Activar opciones de visualización
     if (checkShowContours) checkShowContours->setChecked(true);
     if (checkShowOverlay) checkShowOverlay->setChecked(true);
-    if (checkShowLabels) checkShowLabels->setChecked(false);
-    
-    // Desactivar filtrado de bordes (queremos detectar costillas y vértebras en bordes)
     if (checkFilterBorder) checkFilterBorder->setChecked(false);
     
     blockSignals(prevState);
     
-    // Ejecutar segmentación
-    onSegmentationChanged();
-    lblStatus->setText("🦴 Preset 'Huesos Óptimo' aplicado: HU[200,1000], Área[1000,50000]");
+    // Mostrar resultado
+    updateSegmentationDisplay();
+    
+    QString statusMsg = QString("🦴 Pipeline Huesos Completado: %1 estructuras identificadas "
+                               "(Costillas:%2, Columna:%3, Esternón:%4, Otros:%5)")
+                        .arg(allBones.size())
+                        .arg(costillas.size())
+                        .arg(columna.size())
+                        .arg(esternon.size())
+                        .arg(otros.size());
+    lblStatus->setText(statusMsg);
+    
+    std::cout << "\n╔═══════════════════════════════════════════╗" << std::endl;
+    std::cout << "║     PIPELINE DE HUESOS COMPLETADO        ║" << std::endl;
+    std::cout << "║  " << allBones.size() << " estructuras óseas identificadas     ║" << std::endl;
+    std::cout << "╚═══════════════════════════════════════════╝\n" << std::endl;
 }
 
 void MainWindow::onSegPresetAorta()

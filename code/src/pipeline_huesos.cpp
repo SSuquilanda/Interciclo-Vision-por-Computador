@@ -63,6 +63,7 @@ int main(int argc, char* argv[]) {
             Segmentation::SegmentedRegion bone = region;
             double distX = std::abs(region.centroid.x - imgCenter.x);
             double distY = region.centroid.y - imgCenter.y;
+            double distTotal = cv::norm(region.centroid - imgCenter); // CORRECCIÓN: Calculamos distancia total al centro
             
             // Calcular aspect ratio (relación ancho/alto) del bounding box
             double width = region.boundingBox.width;
@@ -70,31 +71,33 @@ int main(int argc, char* argv[]) {
             double aspectRatio = (height > 0) ? (width / height) : 1.0;
             
             // COLUMNA: Posterior (parte inferior) y muy central horizontalmente
-            // Generalmente compacta (aspecto cercano a 1)
             if (distX < 60 && distY > 40 && region.area > 150) {
                 bone.label = "Columna Vertebral";
                 bone.color = cv::Scalar(0, 0, 255); // Rojo
                 columna.push_back(bone);
             }
             // ESTERNÓN: Anterior (parte superior) y central
-            // Típicamente alargado verticalmente
             else if (distX < 60 && distY < -20 && region.area > 200) {
                 bone.label = "Esternon";
-                bone.color = cv::Scalar(0, 100, 255); // Rojo claro
+                bone.color = cv::Scalar(0, 100, 255); // Rojo claro (Naranja)
                 esternon.push_back(bone);
             }
             // COSTILLAS: Laterales y generalmente alargadas
-            // Aspecto ratio > 2 indica estructura alargada (costilla)
             else if (distX > 60 || aspectRatio > 2.0) {
                 bone.label = "Costilla";
-                bone.color = cv::Scalar(0, 200, 255); // Naranja
+                bone.color = cv::Scalar(0, 200, 255); // Amarillo/Naranja
                 costillas.push_back(bone);
             }
-            // Otros: fragmentos que no cumplen criterios claros
-            else if (region.area > 120) {
-                bone.label = "Hueso";
-                bone.color = cv::Scalar(0, 0, 200);
-                otros.push_back(bone);
+            // OTROS: Fragmentos no clasificados
+            // CORRECCIÓN: Aumentamos área mínima y FILTRAMOS EL CENTRO
+            else if (region.area > 300) { 
+                // Si está muy cerca del centro (distTotal < 60), es probable que sea calcificación de aorta/corazón.
+                // Solo aceptamos "otros huesos" si están lejos del centro.
+                if (distTotal > 60) {
+                    bone.label = "Hueso (Otro)";
+                    bone.color = cv::Scalar(100, 100, 100); // CORRECCIÓN: Gris (para diferenciar del rojo)
+                    otros.push_back(bone);
+                }
             }
         }
         
@@ -120,7 +123,7 @@ int main(int argc, char* argv[]) {
         refinar(esternon);
         refinar(otros);
 
-        // 6. VISUALIZACIÓN
+        // 6. VISUALIZACIÓN CON OVERLAY RELLENO
         std::cout << "\n→ Generando visualización..." << std::endl;
         
         cv::Mat image8bit = Bridge::normalize16to8bit(imageHU_16bit);
@@ -133,11 +136,22 @@ int main(int argc, char* argv[]) {
         allBones.insert(allBones.end(), costillas.begin(), costillas.end());
         allBones.insert(allBones.end(), otros.begin(), otros.end());
         
-        // Dibujar contornos
+        // Crear overlay con máscaras RELLENAS
         cv::Mat result = imageColor.clone();
+        cv::Mat overlay = result.clone();
+        
+        // Rellenar cada región con su color
+        for (const auto& bone : allBones) {
+            overlay.setTo(bone.color, bone.mask);
+        }
+        
+        // Combinar: 70% imagen + 30% overlay coloreado
+        cv::addWeighted(result, 0.7, overlay, 0.3, 0, result);
+        
+        // Dibujar contornos GRUESOS encima para definición
         for (const auto& bone : allBones) {
             std::vector<std::vector<cv::Point>> contours;
-            cv::findContours(bone.mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+            cv::findContours(bone.mask.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
             cv::drawContours(result, contours, -1, bone.color, 2);
         }
         
@@ -148,6 +162,8 @@ int main(int argc, char* argv[]) {
         cv::putText(result, "NARANJA: Costillas", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 200, 255), 2);
         y += 25;
         cv::putText(result, "ROJO CLARO: Esternon", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 100, 255), 2);
+        y += 25;
+        cv::putText(result, "GRIS: Otros", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(100, 100, 100), 2); // CORRECCIÓN
 
         cv::imshow("Imagen Original", image8bit);
         cv::imshow("HUESOS Segmentados", result);
