@@ -2407,79 +2407,37 @@ void MainWindow::onSegPresetBones()
     
     cv::Point2d imgCenter(imageHU_16bit.cols / 2.0, imageHU_16bit.rows / 2.0);
     
-    // 3. SEGMENTACIÓN DE HUESOS
+    // 3. SEGMENTACIÓN Y CLASIFICACIÓN DE HUESOS (TODO EN UNO con segmentBones)
     std::cout << "\n→ Segmentando estructuras óseas..." << std::endl;
     
-    // Parámetros para hueso cortical y esponjoso
+    // Parámetros (aunque segmentBones usa valores fijos internos)
     Segmentation::SegmentationParams boneParams;
-    boneParams.minHU = 200;    // Hueso denso
-    boneParams.maxHU = 3000;   // Rango completo de hueso
-    boneParams.minArea = 80;   // Aumentado para reducir fragmentos pequeños
+    boneParams.minHU = 200;
+    boneParams.maxHU = 3000;
+    boneParams.minArea = 80;
     boneParams.maxArea = 100000;
-    boneParams.visualColor = cv::Scalar(0, 0, 255); // Rojo
+    boneParams.visualColor = cv::Scalar(0, 0, 255);
     
-    auto boneRegions = Segmentation::segmentBones(imageHU_16bit, boneParams);
+    // ¡USAR LA FUNCIÓN COMPLETA que ya clasifica TODO!
+    auto allBones = Segmentation::segmentBones(imageHU_16bit, boneParams);
     
-    // Filtrar por maxArea manualmente (segmentBones no lo hace)
-    std::vector<Segmentation::SegmentedRegion> filteredRegions;
-    for (const auto& region : boneRegions) {
-        if (region.area <= boneParams.maxArea) {
-            filteredRegions.push_back(region);
-        }
-    }
-    boneRegions = filteredRegions;
+    std::cout << "  Total regiones óseas detectadas y clasificadas: " << allBones.size() << std::endl;
     
-    std::cout << "  Total regiones óseas detectadas: " << boneRegions.size() << std::endl;
-    
-    // 4. CLASIFICACIÓN DE HUESOS CON CRITERIOS MEJORADOS
-    std::cout << "\n→ Clasificando estructuras óseas..." << std::endl;
-    
+    // Separar por categorías para estadísticas
     std::vector<Segmentation::SegmentedRegion> costillas;
     std::vector<Segmentation::SegmentedRegion> columna;
     std::vector<Segmentation::SegmentedRegion> esternon;
     std::vector<Segmentation::SegmentedRegion> otros;
     
-    for (const auto& region : boneRegions) {
-        if (region.area < 80) continue;
-        
-        Segmentation::SegmentedRegion bone = region;
-        double distX = std::abs(region.centroid.x - imgCenter.x);
-        double distY = region.centroid.y - imgCenter.y;
-        double distTotal = cv::norm(region.centroid - imgCenter);
-        
-        // Calcular aspect ratio (relación ancho/alto) del bounding box
-        double width = region.boundingBox.width;
-        double height = region.boundingBox.height;
-        double aspectRatio = (height > 0) ? (width / height) : 1.0;
-        
-        // COLUMNA: Posterior (parte inferior) y muy central horizontalmente
-        if (distX < 60 && distY > 40 && region.area > 150) {
-            bone.label = "Columna Vertebral";
-            bone.color = cv::Scalar(0, 0, 255); // Rojo
+    for (const auto& bone : allBones) {
+        if (bone.label.find("Columna") != std::string::npos) {
             columna.push_back(bone);
-        }
-        // ESTERNÓN: Anterior (parte superior) y central
-        else if (distX < 60 && distY < -20 && region.area > 200) {
-            bone.label = "Esternon";
-            bone.color = cv::Scalar(0, 100, 255); // Rojo claro
-            esternon.push_back(bone);
-        }
-        // COSTILLAS: Laterales y generalmente alargadas
-        else if (distX > 60 || aspectRatio > 2.0) {
-            bone.label = "Costilla";
-            bone.color = cv::Scalar(0, 200, 255); // Amarillo/Naranja
+        } else if (bone.label.find("Costilla") != std::string::npos) {
             costillas.push_back(bone);
-        }
-        // OTROS: Fragmentos no clasificados
-        // CORRECCIÓN: Aumentamos área mínima y FILTRAMOS EL CENTRO
-        else if (region.area > 300) { 
-            // Si está muy cerca del centro (distTotal < 60), es probable que sea calcificación de aorta/corazón.
-            // Solo aceptamos "otros huesos" si están lejos del centro.
-            if (distTotal > 60) {
-                bone.label = "Hueso (Otro)";
-                bone.color = cv::Scalar(100, 100, 100); // CORRECCIÓN: Gris (para diferenciar del rojo)
-                otros.push_back(bone);
-            }
+        } else if (bone.label.find("Esternon") != std::string::npos) {
+            esternon.push_back(bone);
+        } else {
+            otros.push_back(bone);
         }
     }
     
@@ -2487,23 +2445,6 @@ void MainWindow::onSegPresetBones()
     std::cout << "  ✓ Columna vertebral: " << columna.size() << " segmentos" << std::endl;
     std::cout << "  ✓ Esternón: " << esternon.size() << std::endl;
     std::cout << "  ✓ Otros: " << otros.size() << std::endl;
-    
-    // 5. REFINAMIENTO
-    std::cout << "\n→ Refinando máscaras..." << std::endl;
-    
-    auto refinar = [](std::vector<Segmentation::SegmentedRegion>& bones) {
-        for (auto& bone : bones) {
-            // Apertura suave para eliminar ruido
-            bone.mask = Morphology::opening(bone.mask, cv::Size(3, 3));
-            // Cierre para conectar fragmentos
-            bone.mask = Morphology::closing(bone.mask, cv::Size(3, 3));
-        }
-    };
-    
-    refinar(costillas);
-    refinar(columna);
-    refinar(esternon);
-    refinar(otros);
     
     // 6. VISUALIZACIÓN CON OVERLAY RELLENO
     std::cout << "\n→ Generando visualización..." << std::endl;
@@ -2518,12 +2459,7 @@ void MainWindow::onSegPresetBones()
         imageColor = image8bit.clone();
     }
     
-    // Combinar todas las regiones
-    std::vector<Segmentation::SegmentedRegion> allBones;
-    allBones.insert(allBones.end(), columna.begin(), columna.end());
-    allBones.insert(allBones.end(), esternon.begin(), esternon.end());
-    allBones.insert(allBones.end(), costillas.begin(), costillas.end());
-    allBones.insert(allBones.end(), otros.begin(), otros.end());
+    // allBones ya está definido arriba con todo clasificado por segmentBones()
     
     // Crear resultado inicial
     cv::Mat result = imageColor.clone();

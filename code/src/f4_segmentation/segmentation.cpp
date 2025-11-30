@@ -204,22 +204,60 @@ SegmentedRegion segmentHeart(const cv::Mat& image,
 }
 
 std::vector<SegmentedRegion> segmentBones(const cv::Mat& image, 
-                                          const SegmentationParams& params) {
-    // TODO: Implementar segmentación específica de huesos
-    // Usar valores HU altos: >200
-    
+                                          const SegmentationParams& params) { // Mantenemos la firma para no romper el .h
     std::vector<SegmentedRegion> boneRegions;
     
-    // Placeholder: umbralización por rango HU
-    cv::Mat mask = thresholdByRange(image, params.minHU, params.maxHU);
-    
-    // Encontrar componentes conectados
-    boneRegions = findConnectedComponents(mask, params.minArea);
-    
-    // Asignar etiquetas y colores
-    for (size_t i = 0; i < boneRegions.size(); i++) {
-        boneRegions[i].label = "Estructura Ósea " + std::to_string(i + 1);
-        boneRegions[i].color = params.visualColor;
+    // Usamos el centro de la imagen para la lógica geométrica
+    cv::Point2d imgCenter(image.cols / 2.0, image.rows / 2.0);
+
+    // 1. Umbralización (Rango hueso: 200 a 3000 HU)
+    // Ignoramos params.minHU/maxHU para asegurar que usamos el estándar médico de huesos
+    cv::Mat mask = thresholdByRange(image, 200, 3000);
+
+    // 2. Componentes Conectados
+    auto components = findConnectedComponents(mask, 80); // Min area 80
+
+    for (auto& region : components) {
+        // Morfología de limpieza (Apertura + Cierre)
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
+        cv::morphologyEx(region.mask, region.mask, cv::MORPH_OPEN, kernel);
+        cv::morphologyEx(region.mask, region.mask, cv::MORPH_CLOSE, kernel);
+
+        region.area = cv::countNonZero(region.mask);
+        if (region.area < 80) continue;
+
+        // Métricas geométricas para clasificación
+        double distX = std::abs(region.centroid.x - imgCenter.x);
+        double distY = region.centroid.y - imgCenter.y;
+        double distTotal = cv::norm(region.centroid - imgCenter); 
+        double aspectRatio = (region.boundingBox.height > 0) ? 
+                             (double)region.boundingBox.width / (double)region.boundingBox.height : 0.0;
+
+        // 3. Clasificación Anatómica
+        if (distX < 60 && distY > 40 && region.area > 150) {
+            region.label = "Columna Vertebral";
+            region.color = cv::Scalar(0, 0, 255); // Rojo Puro
+            boneRegions.push_back(region);
+        }
+        else if (distX < 60 && distY < -20 && region.area > 200) {
+            region.label = "Esternon";
+            region.color = cv::Scalar(0, 100, 255); // Naranja
+            boneRegions.push_back(region);
+        }
+        else if (distX > 60 || aspectRatio > 2.0) {
+            region.label = "Costilla";
+            region.color = cv::Scalar(0, 200, 255); // Amarillo
+            boneRegions.push_back(region);
+        }
+        else if (region.area > 300) {
+            // CORRECCIÓN CLAVE: Si está muy cerca del centro (>60px), lo aceptamos.
+            // Si está muy cerca (<60px), lo ignoramos porque es ruido de la aorta.
+            if (distTotal > 60) { 
+                region.label = "Hueso (Otro)";
+                region.color = cv::Scalar(100, 100, 100); // Gris (para diferenciar)
+                boneRegions.push_back(region);
+            }
+        }
     }
     
     return boneRegions;
