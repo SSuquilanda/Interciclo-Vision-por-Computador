@@ -474,7 +474,7 @@ QWidget* MainWindow::createPreprocessingTab()
     QGroupBox *presetGroup = new QGroupBox("Presets Optimizados");
     QVBoxLayout *presetLayout = new QVBoxLayout(presetGroup);
     
-    btnPresetLungs = new QPushButton("dddd Pulmones Óptimo");
+    btnPresetLungs = new QPushButton("🫁 Pulmones Óptimo");
     btnPresetLungs->setMinimumHeight(35);
     btnPresetLungs->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; }");
     connect(btnPresetLungs, &QPushButton::clicked, this, &MainWindow::onPresetLungs);
@@ -2381,7 +2381,11 @@ void MainWindow::onSegPresetLungs()
 
 void MainWindow::onSegPresetBones()
 {
-    // 🦴 PIPELINE ESPECIALIZADO DE HUESOS - Integración completa
+    // 🦴 PIPELINE ESPECIALIZADO DE HUESOS - COPIA EXACTA de pipeline_huesos.cpp
+    std::cout << "\n╔═══════════════════════════════════════════╗" << std::endl;
+    std::cout << "║   PIPELINE ESPECIALIZADO: HUESOS 🦴      ║" << std::endl;
+    std::cout << "╚═══════════════════════════════════════════╝\n" << std::endl;
+    
     lblStatus->setText("🦴 Iniciando Pipeline Especializado de Huesos...");
     
     if (sliceContext.originalRaw.empty()) {
@@ -2392,36 +2396,43 @@ void MainWindow::onSegPresetBones()
     // Bloquear señales temporalmente
     bool prevState = blockSignals(true);
     
-    // ===== PASO 1: PREPROCESAMIENTO =====
-    // Aplicar filtro bilateral para preservar bordes de estructuras óseas
-    cv::Mat preprocessed = sliceContext.originalRaw.clone();
-    if (checkBilateral && checkBilateral->isChecked()) {
-        // Configurar filtro bilateral óptimo para huesos
-        if (sliderBilateralD) sliderBilateralD->setValue(9);
-        if (sliderBilateralSigma) sliderBilateralSigma->setValue(75);
-        
-        cv::Mat temp8bit = Bridge::normalize16to8bit(preprocessed);
-        cv::Mat filtered8bit;
-        cv::bilateralFilter(temp8bit, filtered8bit, 9, 75, 75);
-        filtered8bit.convertTo(preprocessed, CV_16SC1);
+    // 1. LECTURA - usar imagen original RAW
+    cv::Mat imageHU_16bit = sliceContext.originalRaw;
+    if (imageHU_16bit.empty()) {
+        lblStatus->setText("⚠️ Error: Imagen vacía");
+        blockSignals(prevState);
+        return;
     }
+    std::cout << "  Dimensiones: " << imageHU_16bit.cols << "x" << imageHU_16bit.rows << std::endl;
     
-    // ===== PASO 2: SEGMENTACIÓN CON CLASIFICACIÓN ANATÓMICA =====
+    cv::Point2d imgCenter(imageHU_16bit.cols / 2.0, imageHU_16bit.rows / 2.0);
+    
+    // 3. SEGMENTACIÓN DE HUESOS
     std::cout << "\n→ Segmentando estructuras óseas..." << std::endl;
     
-    // Parámetros para hueso cortical y esponjoso (200-3000 HU)
+    // Parámetros para hueso cortical y esponjoso
     Segmentation::SegmentationParams boneParams;
-    boneParams.minHU = 200;
-    boneParams.maxHU = 3000;
-    boneParams.minArea = 80;
+    boneParams.minHU = 200;    // Hueso denso
+    boneParams.maxHU = 3000;   // Rango completo de hueso
+    boneParams.minArea = 80;   // Aumentado para reducir fragmentos pequeños
     boneParams.maxArea = 100000;
-    boneParams.visualColor = cv::Scalar(0, 0, 255);
+    boneParams.visualColor = cv::Scalar(0, 0, 255); // Rojo
     
-    auto boneRegions = Segmentation::segmentOrgan(preprocessed, boneParams, "Hueso");
+    auto boneRegions = Segmentation::segmentBones(imageHU_16bit, boneParams);
+    
+    // Filtrar por maxArea manualmente (segmentBones no lo hace)
+    std::vector<Segmentation::SegmentedRegion> filteredRegions;
+    for (const auto& region : boneRegions) {
+        if (region.area <= boneParams.maxArea) {
+            filteredRegions.push_back(region);
+        }
+    }
+    boneRegions = filteredRegions;
+    
     std::cout << "  Total regiones óseas detectadas: " << boneRegions.size() << std::endl;
     
-    // ===== PASO 3: CLASIFICACIÓN ANATÓMICA =====
-    cv::Point2d imgCenter(preprocessed.cols / 2.0, preprocessed.rows / 2.0);
+    // 4. CLASIFICACIÓN DE HUESOS CON CRITERIOS MEJORADOS
+    std::cout << "\n→ Clasificando estructuras óseas..." << std::endl;
     
     std::vector<Segmentation::SegmentedRegion> costillas;
     std::vector<Segmentation::SegmentedRegion> columna;
@@ -2436,6 +2447,7 @@ void MainWindow::onSegPresetBones()
         double distY = region.centroid.y - imgCenter.y;
         double distTotal = cv::norm(region.centroid - imgCenter);
         
+        // Calcular aspect ratio (relación ancho/alto) del bounding box
         double width = region.boundingBox.width;
         double height = region.boundingBox.height;
         double aspectRatio = (height > 0) ? (width / height) : 1.0;
@@ -2458,11 +2470,16 @@ void MainWindow::onSegPresetBones()
             bone.color = cv::Scalar(0, 200, 255); // Amarillo/Naranja
             costillas.push_back(bone);
         }
-        // OTROS: Fragmentos no clasificados (filtrar centro para evitar calcificaciones)
-        else if (region.area > 300 && distTotal > 60) {
-            bone.label = "Hueso (Otro)";
-            bone.color = cv::Scalar(100, 100, 100); // Gris
-            otros.push_back(bone);
+        // OTROS: Fragmentos no clasificados
+        // CORRECCIÓN: Aumentamos área mínima y FILTRAMOS EL CENTRO
+        else if (region.area > 300) { 
+            // Si está muy cerca del centro (distTotal < 60), es probable que sea calcificación de aorta/corazón.
+            // Solo aceptamos "otros huesos" si están lejos del centro.
+            if (distTotal > 60) {
+                bone.label = "Hueso (Otro)";
+                bone.color = cv::Scalar(100, 100, 100); // CORRECCIÓN: Gris (para diferenciar del rojo)
+                otros.push_back(bone);
+            }
         }
     }
     
@@ -2471,7 +2488,9 @@ void MainWindow::onSegPresetBones()
     std::cout << "  ✓ Esternón: " << esternon.size() << std::endl;
     std::cout << "  ✓ Otros: " << otros.size() << std::endl;
     
-    // ===== PASO 4: REFINAMIENTO MORFOLÓGICO =====
+    // 5. REFINAMIENTO
+    std::cout << "\n→ Refinando máscaras..." << std::endl;
+    
     auto refinar = [](std::vector<Segmentation::SegmentedRegion>& bones) {
         for (auto& bone : bones) {
             // Apertura suave para eliminar ruido
@@ -2486,16 +2505,59 @@ void MainWindow::onSegPresetBones()
     refinar(esternon);
     refinar(otros);
     
-    // ===== PASO 5: COMBINAR Y VISUALIZAR =====
-    // Combinar todas las regiones clasificadas
+    // 6. VISUALIZACIÓN CON OVERLAY RELLENO
+    std::cout << "\n→ Generando visualización..." << std::endl;
+    
+    cv::Mat image8bit = Bridge::normalize16to8bit(imageHU_16bit);
+    cv::Mat imageColor;
+    
+    // FORZAR conversión a BGR
+    if (image8bit.channels() == 1) {
+        cv::cvtColor(image8bit, imageColor, cv::COLOR_GRAY2BGR);
+    } else {
+        imageColor = image8bit.clone();
+    }
+    
+    // Combinar todas las regiones
     std::vector<Segmentation::SegmentedRegion> allBones;
     allBones.insert(allBones.end(), columna.begin(), columna.end());
     allBones.insert(allBones.end(), esternon.begin(), esternon.end());
     allBones.insert(allBones.end(), costillas.begin(), costillas.end());
     allBones.insert(allBones.end(), otros.begin(), otros.end());
     
+    // Crear resultado inicial
+    cv::Mat result = imageColor.clone();
+    
+    // PASO 1: Crear overlay negro del mismo tamaño
+    cv::Mat overlay = cv::Mat::zeros(result.size(), result.type());
+    
+    // PASO 2: Rellenar cada región con su color EN EL OVERLAY
+    for (const auto& bone : allBones) {
+        overlay.setTo(bone.color, bone.mask);
+    }
+    
+    // PASO 3: Combinar con transparencia (70% imagen + 30% overlay)
+    cv::addWeighted(result, 0.7, overlay, 0.3, 0, result);
+    
+    // PASO 4: Dibujar contornos GRUESOS encima para mejor definición
+    for (const auto& bone : allBones) {
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(bone.mask.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        cv::drawContours(result, contours, -1, bone.color, 2);
+    }
+    
+    // Leyenda
+    int y = 30;
+    cv::putText(result, "ROJO: Columna", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 255), 2);
+    y += 25;
+    cv::putText(result, "NARANJA: Costillas", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 200, 255), 2);
+    y += 25;
+    cv::putText(result, "ROJO CLARO: Esternon", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 100, 255), 2);
+    y += 25;
+    cv::putText(result, "GRIS: Otros", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(100, 100, 100), 2);
+    
     // Crear máscara combinada para sliceContext
-    cv::Mat combinedMask = cv::Mat::zeros(preprocessed.size(), CV_8UC1);
+    cv::Mat combinedMask = cv::Mat::zeros(imageHU_16bit.size(), CV_8UC1);
     for (const auto& bone : allBones) {
         combinedMask |= bone.mask;
     }
@@ -2504,40 +2566,14 @@ void MainWindow::onSegPresetBones()
     sliceContext.segmentationMask = combinedMask;
     sliceContext.huesosRegions = allBones;
     
-    // Crear visualización con overlay coloreado RELLENO (como pipeline standalone)
-    cv::Mat image8bit = Bridge::normalize16to8bit(preprocessed);
-    cv::Mat imageColor = Bridge::convertToColor(image8bit);
-    cv::Mat result = imageColor.clone();
-    
-    // MÉTODO 1: Overlay con máscaras rellenas + transparencia
-    cv::Mat overlay = result.clone();
-    for (const auto& bone : allBones) {
-        // Rellenar toda la región con su color
-        overlay.setTo(bone.color, bone.mask);
-    }
-    // Combinar: 70% imagen original + 30% overlay coloreado
-    cv::addWeighted(result, 0.7, overlay, 0.3, 0, result);
-    
-    // MÉTODO 2: Dibujar contornos GRUESOS encima para mejor definición
-    for (const auto& bone : allBones) {
-        std::vector<std::vector<cv::Point>> contours;
-        cv::findContours(bone.mask.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-        cv::drawContours(result, contours, -1, bone.color, 2);
-    }
-    
-    // Agregar leyenda
-    int y = 30;
-    cv::putText(result, "ROJO: Columna", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 255), 2);
-    y += 25;
-    cv::putText(result, "AMARILLO: Costillas", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 200, 255), 2);
-    y += 25;
-    cv::putText(result, "NARANJA: Esternon", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 100, 255), 2);
-    y += 25;
-    cv::putText(result, "GRIS: Otros", cv::Point(10, y), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(100, 100, 100), 2);
-    
     sliceContext.finalOverlay = result;
     
-    // ===== ACTUALIZAR UI =====
+    std::cout << "\n╔═══════════════════════════════════════════╗" << std::endl;
+    std::cout << "║          SEGMENTACIÓN COMPLETADA          ║" << std::endl;
+    std::cout << "║  " << allBones.size() << " estructuras óseas identificadas     ║" << std::endl;
+    std::cout << "╚═══════════════════════════════════════════╝\n" << std::endl;
+    
+    // Actualizar UI
     if (sliderMinHU) sliderMinHU->setValue(200);
     if (sliderMaxHU) sliderMaxHU->setValue(3000);
     if (sliderMinArea) sliderMinArea->setValue(80);
@@ -2560,11 +2596,6 @@ void MainWindow::onSegPresetBones()
                         .arg(esternon.size())
                         .arg(otros.size());
     lblStatus->setText(statusMsg);
-    
-    std::cout << "\n╔═══════════════════════════════════════════╗" << std::endl;
-    std::cout << "║     PIPELINE DE HUESOS COMPLETADO        ║" << std::endl;
-    std::cout << "║  " << allBones.size() << " estructuras óseas identificadas     ║" << std::endl;
-    std::cout << "╚═══════════════════════════════════════════╝\n" << std::endl;
 }
 
 void MainWindow::onSegPresetAorta()
