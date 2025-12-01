@@ -22,9 +22,19 @@ MainWindow::MainWindow(QWidget *parent)
     };
     
     std::string modelPath;
+    // PRIORIDAD 1: Configurar Flask Server
+    std::cout << "[INFO] ========================================" << std::endl;
+    std::cout << "[INFO] Configurando DnCNN via Flask Server" << std::endl;
+    std::cout << "[INFO] ========================================" << std::endl;
+    std::cout << "[INFO] URL: http://localhost:5000/denoise" << std::endl;
+    dncnnDenoiser.setFlaskServer("http://localhost:5000/denoise");
+    dncnnModelLoaded = true; // Flask está configurado
+    std::cout << "[✓] Flask server configurado exitosamente" << std::endl;
+    
+    // PRIORIDAD 2: Cargar modelo local como fallback
     bool fileFound = false;
     
-    std::cout << "[INFO] Buscando modelo DnCNN..." << std::endl;
+    std::cout << "\n[INFO] Buscando modelo DnCNN local (fallback)..." << std::endl;
     for (const auto& path : possiblePaths) {
         std::cout << "  Probando: " << path << " ... ";
         if (std::filesystem::exists(path)) {
@@ -38,16 +48,15 @@ MainWindow::MainWindow(QWidget *parent)
     }
     
     if (fileFound) {
-        std::cout << "[INFO] Cargando modelo desde: " << modelPath << std::endl;
-        dncnnModelLoaded = dncnnDenoiser.loadModel(modelPath);
-        if (dncnnModelLoaded) {
-            std::cout << "[✓] Modelo DnCNN cargado exitosamente" << std::endl;
+        std::cout << "[INFO] Cargando modelo local como fallback desde: " << modelPath << std::endl;
+        bool localLoaded = dncnnDenoiser.loadModel(modelPath);
+        if (localLoaded) {
+            std::cout << "[✓] Modelo DnCNN local cargado (fallback disponible)" << std::endl;
         } else {
-            std::cerr << "[✗] ERROR: Modelo encontrado pero falló al cargar" << std::endl;
+            std::cerr << "[!] Modelo encontrado pero falló al cargar (solo Flask disponible)" << std::endl;
         }
     } else {
-        std::cerr << "[✗] ERROR: Archivo de modelo DnCNN no encontrado en ninguna ubicación" << std::endl;
-        std::cerr << "[!] DnCNN no estará disponible para preprocesamiento" << std::endl;
+        std::cout << "[!] Modelo local no encontrado (solo Flask disponible)" << std::endl;
     }
     
     setupUI();
@@ -577,7 +586,7 @@ void MainWindow::setupTabSegmentation() {
     controlLayout->addSpacing(10);
     
     // Botón: Limpiar
-    btnClearSegmentation = new QPushButton("🗑️ Limpiar Segmentación");
+    btnClearSegmentation = new QPushButton("Limpiar Segmentación");
     btnClearSegmentation->setMinimumHeight(35);
     btnClearSegmentation->setStyleSheet(
         "QPushButton { "
@@ -834,7 +843,7 @@ void MainWindow::setupTabMorphology() {
     controlLayout->addSpacing(20);
     
     // === Botón: Aplicar Morfología ===
-    btnApplyMorphology = new QPushButton("🔧 Aplicar Operación");
+    btnApplyMorphology = new QPushButton("Aplicar Operación");
     btnApplyMorphology->setMinimumHeight(45);
     btnApplyMorphology->setStyleSheet(
         "QPushButton { "
@@ -852,7 +861,7 @@ void MainWindow::setupTabMorphology() {
     controlLayout->addSpacing(10);
     
     // === Botón: Rellenar Huecos ===
-    btnFillHoles = new QPushButton("🕳️ Rellenar Huecos");
+    btnFillHoles = new QPushButton("Rellenar Huecos");
     btnFillHoles->setMinimumHeight(40);
     btnFillHoles->setStyleSheet(
         "QPushButton { "
@@ -892,7 +901,7 @@ void MainWindow::setupTabMorphology() {
     controlLayout->addSpacing(15);
     
     // === Información ===
-    QGroupBox* infoGroup = new QGroupBox("ℹ️ Información");
+    QGroupBox* infoGroup = new QGroupBox("Información");
     QVBoxLayout* infoLayout = new QVBoxLayout(infoGroup);
     infoLayout->addWidget(new QLabel("<b>Erosión:</b> Reduce regiones blancas"));
     infoLayout->addWidget(new QLabel("<b>Dilatación:</b> Expande regiones blancas"));
@@ -1028,7 +1037,7 @@ void MainWindow::setupTabVisualization() {
     // === Botones de Acción ===
     QVBoxLayout* buttonsLayout = new QVBoxLayout();
     
-    btnUpdateVisualization = new QPushButton("🔄 Actualizar Vista");
+    btnUpdateVisualization = new QPushButton("Actualizar Vista");
     btnUpdateVisualization->setMinimumHeight(40);
     btnUpdateVisualization->setStyleSheet(
         "QPushButton { "
@@ -1100,7 +1109,7 @@ void MainWindow::setupTabMetrics() {
     QWidget* headerPanel = new QWidget();
     QHBoxLayout* headerLayout = new QHBoxLayout(headerPanel);
     
-    QLabel* titleLabel = new QLabel("📊 Dashboard de Métricas y Rendimiento");
+    QLabel* titleLabel = new QLabel("Dashboard de Métricas y Rendimiento");
     titleLabel->setStyleSheet("font-weight: bold; font-size: 16px; color: #00BCD4;");
     
     btnCalculateMetrics = new QPushButton("⟳ Actualizar Métricas");
@@ -1124,7 +1133,7 @@ void MainWindow::setupTabMetrics() {
     mainLayout->addWidget(headerPanel);
     
     // === SECCIÓN 1: TABLA DE MÉTRICAS ===
-    QGroupBox* tableGroup = new QGroupBox("📋 Estadísticas de Segmentación");
+    QGroupBox* tableGroup = new QGroupBox("Estadísticas de Segmentación");
     QVBoxLayout* tableLayout = new QVBoxLayout(tableGroup);
     
     tableMetrics = new QTableWidget();
@@ -1161,7 +1170,7 @@ void MainWindow::setupTabMetrics() {
     mainLayout->addWidget(tableGroup);
     
     // === SECCIÓN 2: HISTOGRAMA ROI ===
-    QGroupBox* histogramGroup = new QGroupBox("📈 Histograma de Región de Interés (ROI)");
+    QGroupBox* histogramGroup = new QGroupBox("Histograma de Región de Interés (ROI)");
     QVBoxLayout* histogramLayout = new QVBoxLayout(histogramGroup);
     
     labelHistogram = new QLabel("Segmenta una región para ver su histograma");
@@ -1181,7 +1190,7 @@ void MainWindow::setupTabMetrics() {
     mainLayout->addWidget(histogramGroup);
     
     // === SECCIÓN 3: MÉTRICAS DE RENDIMIENTO ===
-    QGroupBox* performanceGroup = new QGroupBox("⚡ Rendimiento del Sistema");
+    QGroupBox* performanceGroup = new QGroupBox("Rendimiento del Sistema");
     QHBoxLayout* performanceLayout = new QHBoxLayout(performanceGroup);
     
     labelPerformanceInfo = new QLabel("⏱️ Tiempo de Procesamiento: -- ms");
@@ -1885,7 +1894,7 @@ void MainWindow::onCalculateMetrics() {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     
     // Tiempo de procesamiento
-    labelPerformanceInfo->setText(QString("⏱️ Tiempo de Procesamiento: %1 ms").arg(duration.count()));
+    labelPerformanceInfo->setText(QString("Tiempo de Procesamiento: %1 ms").arg(duration.count()));
     
     // Memoria estimada (bytes -> MB)
     size_t memoryBytes = 0;
@@ -1907,7 +1916,7 @@ void MainWindow::onCalculateMetrics() {
     }
     
     double memoryMB = memoryBytes / (1024.0 * 1024.0);
-    labelMemoryInfo->setText(QString("💾 Memoria Estimada: %1 MB").arg(memoryMB, 0, 'f', 2));
+    labelMemoryInfo->setText(QString("Memoria Estimada: %1 MB").arg(memoryMB, 0, 'f', 2));
     
     // Auto-ajustar columnas
     tableMetrics->resizeColumnsToContents();

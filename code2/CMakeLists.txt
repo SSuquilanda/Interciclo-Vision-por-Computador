@@ -30,6 +30,7 @@ endif()
 find_package(Qt6 COMPONENTS Core Widgets Gui REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(ITK REQUIRED COMPONENTS ITKCommon ITKIOImageBase ITKIOGDCM ITKVideoBridgeOpenCV ITKImageStatistics)
+find_package(CURL REQUIRED)
 
 # (Opcional) GStreamer para Linux
 if(UNIX AND NOT APPLE)
@@ -85,12 +86,14 @@ if(UNIX AND NOT APPLE)
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
         ${GST_LIBRARIES}
+        CURL::libcurl
     )
 else()
     target_link_libraries(MedicalApp PRIVATE
         Qt6::Core Qt6::Widgets Qt6::Gui
         ${OpenCV_LIBS}
         ${ITK_LIBRARIES}
+        CURL::libcurl
     )
 endif()
 

@@ -47,7 +47,19 @@ namespace Preprocessing {
 
     // Implementar DnCNN
 
-    DnCNNDenoiser::DnCNNDenoiser() : modelLoaded(false) {}
+    // Callback para recibir datos de CURL
+    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+        ((std::string*)userp)->append((char*)contents, size * nmemb);
+        return size * nmemb;
+    }
+
+    DnCNNDenoiser::DnCNNDenoiser() : modelLoaded(false), useFlaskServer(false), flaskServerUrl("http://localhost:5000/denoise") {}
+
+    void DnCNNDenoiser::setFlaskServer(const std::string& url) {
+        flaskServerUrl = url;
+        useFlaskServer = true;
+        std::cout << "[INFO] DnCNN configurado para usar Flask server: " << url << std::endl;
+    }
 
     bool DnCNNDenoiser::loadModel(const std::string& onnxPath) {
         try {
@@ -73,7 +85,63 @@ namespace Preprocessing {
         }
     }
 
-    cv::Mat DnCNNDenoiser::denoise(const cv::Mat& noisyImage) {
+    cv::Mat DnCNNDenoiser::denoiseViaFlask(const cv::Mat& noisyImage) {
+        try {
+            // Codificar imagen a PNG en memoria
+            std::vector<uchar> buffer;
+            cv::imencode(".png", noisyImage, buffer);
+            
+            CURL* curl = curl_easy_init();
+            if (!curl) {
+                std::cerr << "[ERROR] No se pudo inicializar CURL" << std::endl;
+                return noisyImage.clone();
+            }
+            
+            // Preparar form data
+            curl_mime* form = curl_mime_init(curl);
+            curl_mimepart* field = curl_mime_addpart(form);
+            curl_mime_name(field, "image");
+            curl_mime_data(field, (const char*)buffer.data(), buffer.size());
+            curl_mime_filename(field, "image.png");
+            curl_mime_type(field, "image/png");
+            
+            // Configurar request
+            std::string responseBuffer;
+            curl_easy_setopt(curl, CURLOPT_URL, flaskServerUrl.c_str());
+            curl_easy_setopt(curl, CURLOPT_MIMEPOST, form);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBuffer);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+            
+            // Realizar request
+            CURLcode res = curl_easy_perform(curl);
+            
+            curl_mime_free(form);
+            curl_easy_cleanup(curl);
+            
+            if (res != CURLE_OK) {
+                std::cerr << "[ERROR] Flask request falló: " << curl_easy_strerror(res) << std::endl;
+                return noisyImage.clone();
+            }
+            
+            // Decodificar respuesta
+            std::vector<uchar> responseData(responseBuffer.begin(), responseBuffer.end());
+            cv::Mat denoised = cv::imdecode(responseData, cv::IMREAD_GRAYSCALE);
+            
+            if (denoised.empty()) {
+                std::cerr << "[ERROR] No se pudo decodificar la respuesta del servidor" << std::endl;
+                return noisyImage.clone();
+            }
+            
+            return denoised;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "[Excepción Flask]: " << e.what() << std::endl;
+            return noisyImage.clone();
+        }
+    }
+
+    cv::Mat DnCNNDenoiser::denoiseViaOpenCV(const cv::Mat& noisyImage) {
         if (!modelLoaded) return noisyImage.clone();
 
         try {
@@ -100,9 +168,9 @@ namespace Preprocessing {
             // Crear Blob (NCHW: 1 x 1 x H x W)
             cv::Mat blob = cv::dnn::blobFromImage(
                 inputFloat,
-                1.0,                    // No re-escalar
+                1.0,                    
                 inputFloat.size(),      
-                cv::Scalar(0),          // No restar mean
+                cv::Scalar(0),          
                 false,                  
                 false                   
             );
@@ -111,26 +179,19 @@ namespace Preprocessing {
             net.setInput(blob);
             cv::Mat outputBlob = net.forward();
 
-            // Extraer imagen correctamente del blob de salida
-            // El blob tiene formato NCHW (1 x 1 x H x W)
-            // Se debe extraer el canal [0][0]
-            
-            cv::Mat denoisedFloat;
-            
-            // Acceso directo a los datos del blob
+            // Extraer imagen del blob
             const int* dims = outputBlob.size.p;
             int height = dims[2];
             int width = dims[3];
             
-            // Crear Mat desde los datos del blob
-            denoisedFloat = cv::Mat(height, width, CV_32F, outputBlob.ptr<float>(0, 0));
-            denoisedFloat = denoisedFloat.clone(); // Hacer copia profunda
+            cv::Mat denoisedFloat = cv::Mat(height, width, CV_32F, outputBlob.ptr<float>(0, 0));
+            denoisedFloat = denoisedFloat.clone();
             
-            // Clamp a [0, 1] para evitar valores fuera de rango
+            // Clamp a [0, 1]
             cv::max(denoisedFloat, 0.0, denoisedFloat);
             cv::min(denoisedFloat, 1.0, denoisedFloat);
 
-            // Convertir de vuelta al tipo original
+            // Convertir al tipo original
             cv::Mat result;
             
             if (originalType == CV_8U) {
@@ -146,9 +207,38 @@ namespace Preprocessing {
             return result;
             
         } catch (const std::exception& e) {
-            std::cerr << "[Excepción en DnCNN denoise]: " << e.what() << std::endl;
+            std::cerr << "[Excepción OpenCV DNN]: " << e.what() << std::endl;
             return noisyImage.clone();
         }
+    }
+
+    cv::Mat DnCNNDenoiser::denoise(const cv::Mat& noisyImage) {
+        // Prioridad 1: Intentar Flask Server
+        if (useFlaskServer) {
+            std::cout << "[INFO] Intentando denoising via Flask server..." << std::endl;
+            cv::Mat result = denoiseViaFlask(noisyImage);
+            
+            // Si Flask funcionó, retornar resultado
+            if (!result.empty() && (result.data != noisyImage.data)) {
+                std::cout << "[✓] Denoising exitoso via Flask" << std::endl;
+                return result;
+            }
+            
+            // Si Flask falló, intentar fallback
+            std::cerr << "[!] Flask server no disponible, intentando fallback a OpenCV DNN..." << std::endl;
+        }
+        
+        // Prioridad 2: Fallback a OpenCV DNN local
+        if (modelLoaded) {
+            std::cout << "[INFO] Usando OpenCV DNN local como fallback..." << std::endl;
+            cv::Mat result = denoiseViaOpenCV(noisyImage);
+            std::cout << "[✓] Denoising exitoso via OpenCV DNN" << std::endl;
+            return result;
+        }
+        
+        // Si nada funciona, retornar imagen original
+        std::cerr << "[!] Ni Flask ni OpenCV DNN disponibles, retornando imagen original" << std::endl;
+        return noisyImage.clone();
     }
 
     // Aplicar DnCNN fácilmente

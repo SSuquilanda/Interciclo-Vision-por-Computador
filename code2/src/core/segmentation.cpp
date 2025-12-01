@@ -121,6 +121,12 @@ std::vector<SegmentedRegion> segmentBones(const cv::Mat& image) {
         double aspectRatio = (region.boundingBox.height > 0) ? 
                              (double)region.boundingBox.width / (double)region.boundingBox.height : 0.0;
 
+        // FILTRO: Eliminar ruido central (arteria aorta calcificada, tejido blando denso)
+        // Si está muy centrado y es pequeño, probablemente es ruido, no hueso estructural
+        if (distX < 50 && distTotal < 80 && region.area < 500) {
+            continue; // Ignorar artefactos centrales pequeños
+        }
+
         // Lógica de Clasificación
         if (distX < 60 && distY > 40 && region.area > 150) {
             region.label = "Columna Vertebral";
@@ -270,6 +276,10 @@ std::vector<SegmentedRegion> segmentBonesCustom(const cv::Mat& image, int minHU,
         double distX = std::abs(region.centroid.x - imgCenter.x);
         double distY = region.centroid.y - imgCenter.y; // + abajo, - arriba
         double distTotal = cv::norm(region.centroid - imgCenter);
+
+        if (distX < 50 && distTotal < 80 && region.area < 500) {
+            continue;
+        }
 
         // Clasificación por posición y geometría
         if (distX < 50.0 && region.area > 300) {

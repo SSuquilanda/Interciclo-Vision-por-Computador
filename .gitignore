@@ -11,5 +11,7 @@ build_cpu/
 *.user
 *.sln.docstates
 
+.venv/
+
 # Archivos generados por Windows
 Thumbs.db

@@ -5,6 +5,7 @@
 #include <opencv2/dnn.hpp>
 #include <string>
 #include <memory>
+#include <curl/curl.h>
 
 namespace Preprocessing {
 
@@ -21,17 +22,22 @@ namespace Preprocessing {
     private:
         cv::dnn::Net net;
         bool modelLoaded;
+        std::string flaskServerUrl;
+        bool useFlaskServer;
+        
+        cv::Mat denoiseViaFlask(const cv::Mat& noisyImage);
+        cv::Mat denoiseViaOpenCV(const cv::Mat& noisyImage);
         
     public:
         DnCNNDenoiser();
         
-        // Cargar el modelo .onnx
+        // Cargar el modelo .onnx (para fallback)
         bool loadModel(const std::string& onnxPath);
         
-        // Procesa la imagen
+        void setFlaskServer(const std::string& url);
         cv::Mat denoise(const cv::Mat& noisyImage);
         
-        bool isLoaded() const { return modelLoaded; }
+        bool isLoaded() const { return modelLoaded || useFlaskServer; }
     };
 
     // Aplicar DnCNN fácilmente
