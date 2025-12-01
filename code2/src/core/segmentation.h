@@ -31,6 +31,10 @@ namespace Segmentation {
     // Umbral (30 a 120), filtros geométricos (central, anterior), morfología de conexión.
     std::vector<SegmentedRegion> segmentAorta(const cv::Mat& image);
 
+    // Versiones con umbrales HU personalizados (avanzado)
+    std::vector<SegmentedRegion> segmentLungsCustom(const cv::Mat& image, int minHU, int maxHU);
+    std::vector<SegmentedRegion> segmentBonesCustom(const cv::Mat& image, int minHU, int maxHU);
+    std::vector<SegmentedRegion> segmentAortaCustom(const cv::Mat& image, int minHU, int maxHU);
 
     // Utilidades
     

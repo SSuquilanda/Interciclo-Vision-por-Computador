@@ -495,6 +495,75 @@ cv::Mat interactiveSegmentation(const cv::Mat& image,
                                  const std::vector<cv::Point>& backgroundSeeds);
 ```
 
+## 🎛️ Segmentación con Rangos HU Personalizados (Avanzado)
+
+### **Funciones Custom**
+
+Para casos especiales donde los rangos HU por defecto no son óptimos (patologías, artefactos, densidades atípicas), el módulo proporciona versiones parametrizadas:
+
+```cpp
+// Pulmones con rango HU personalizado
+std::vector<SegmentedRegion> segmentLungsCustom(const cv::Mat& image, int minHU, int maxHU);
+
+// Huesos con rango HU personalizado
+std::vector<SegmentedRegion> segmentBonesCustom(const cv::Mat& image, int minHU, int maxHU);
+
+// Aorta con rango HU personalizado
+std::vector<SegmentedRegion> segmentAortaCustom(const cv::Mat& image, int minHU, int maxHU);
+```
+
+**Parámetros**:
+
+- `image`: Imagen 16-bit (CV_16S) con valores HU originales
+- `minHU`: Umbral mínimo en Hounsfield Units
+- `maxHU`: Umbral máximo en Hounsfield Units
+
+**Casos de uso clínicos**:
+
+| Condición | Órgano | Rango Custom | Motivo |
+|-----------|--------|--------------|--------|
+| Enfisema severo | Pulmones | `-1000` a `-600` | Tejido destruido con más aire |
+| Consolidación pulmonar | Pulmones | `-600` a `-100` | Tejido más denso (neumonía) |
+| Osteoporosis | Huesos | `100` a `400` | Hueso desmineralizado |
+| Calcificaciones vasculares | Aorta | `130` a `600` | Placas calcificadas |
+
+**Ejemplo de uso**:
+
+```cpp
+// Detectar consolidaciones pulmonares (más densas que aire normal)
+int minHU = -600;  // Menos aire que pulmón sano
+int maxHU = -100;  // Más denso que aire, menos que agua
+auto consolidations = Segmentation::segmentLungsCustom(image, minHU, maxHU);
+
+std::cout << "Regiones consolidadas: " << consolidations.size() << std::endl;
+```
+
+**Interfaz de usuario**:
+
+La aplicación GUI proporciona controles para ajustar rangos HU dinámicamente:
+
+- **Checkbox**: "Usar rangos HU personalizados"
+- **SpinBoxes**: Ajuste fino de `minHU` y `maxHU` (rango: -3000 a +3000 HU)
+- **Botones preset**: Valores predefinidos para órganos comunes
+  - 🫁 **Pulmones**: -1000 a -400 HU
+  - 🦴 **Huesos**: 200 a 3000 HU
+  - ❤️ **Aorta**: 120 a 400 HU
+
+**Ventajas**:
+
+- ✅ Adaptabilidad a patologías específicas
+- ✅ Investigación y análisis fino de tejidos
+- ✅ Experimentación con diferentes umbrales
+- ✅ Ajuste para artefactos o ruido específico
+
+**Advertencias**:
+
+- ⚠️ Rangos muy amplios pueden incluir múltiples tejidos
+- ⚠️ Rangos muy estrechos pueden fragmentar el órgano
+- ⚠️ Se recomienda conocimiento radiológico para ajustar valores
+
+---
+
 ## 🧪 Testing
 
 ### **Test de Rangos HU**
@@ -524,6 +593,20 @@ void testHUThresholds() {
     assert(std::abs(bones[0].meanHU - 800) < 10);
     
     std::cout << "✓ Test de umbrales HU pasado" << std::endl;
+}
+
+void testCustomHURanges() {
+    cv::Mat testImage(512, 512, CV_16S);
+    testImage.setTo(-700); // Enfisema severo
+    
+    // Con rango default (-1000 a -400) debería detectar
+    auto lungs_default = Segmentation::segmentLungs(testImage);
+    
+    // Con rango custom (-1000 a -600) debería detectar mejor
+    auto lungs_custom = Segmentation::segmentLungsCustom(testImage, -1000, -600);
+    
+    assert(!lungs_custom.empty());
+    std::cout << "✓ Test de rangos custom pasado" << std::endl;
 }
 ```
 

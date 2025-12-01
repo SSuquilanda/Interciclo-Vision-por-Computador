@@ -527,7 +527,7 @@ void MainWindow::setupTabSegmentation() {
     controlLayout->addWidget(organsLabel);
     
     // Botón: Pulmones
-    btnSegmentLungs = new QPushButton("🫁 Segmentar PULMONES");
+    btnSegmentLungs = new QPushButton("Segmentar PULMONES");
     btnSegmentLungs->setMinimumHeight(50);
     btnSegmentLungs->setStyleSheet(
         "QPushButton { "
@@ -543,7 +543,7 @@ void MainWindow::setupTabSegmentation() {
     controlLayout->addWidget(btnSegmentLungs);
     
     // Botón: Huesos
-    btnSegmentBones = new QPushButton("🦴 Segmentar HUESOS");
+    btnSegmentBones = new QPushButton("Segmentar HUESOS");
     btnSegmentBones->setMinimumHeight(50);
     btnSegmentBones->setStyleSheet(
         "QPushButton { "
@@ -559,7 +559,7 @@ void MainWindow::setupTabSegmentation() {
     controlLayout->addWidget(btnSegmentBones);
     
     // Botón: Aorta
-    btnSegmentAorta = new QPushButton("❤️ Segmentar AORTA");
+    btnSegmentAorta = new QPushButton("Segmentar AORTA");
     btnSegmentAorta->setMinimumHeight(50);
     btnSegmentAorta->setStyleSheet(
         "QPushButton { "
@@ -594,31 +594,90 @@ void MainWindow::setupTabSegmentation() {
     controlLayout->addSpacing(20);
     
     // === Ajustes de Rango HU (Opcional) ===
-    QGroupBox* huGroup = new QGroupBox("Ajuste de Rango HU (Avanzado)");
+    QGroupBox* huGroup = new QGroupBox("Ajuste de Rango HU");
     QVBoxLayout* huLayout = new QVBoxLayout(huGroup);
     
+    // Checkbox para activar modo manual
+    checkUseCustomHU = new QCheckBox("Usar rangos HU personalizados");
+    checkUseCustomHU->setToolTip("Activa para modificar manualmente los umbrales de Hounsfield Units");
+    huLayout->addWidget(checkUseCustomHU);
+    
+    huLayout->addSpacing(5);
+    
+    // Min HU
     QHBoxLayout* minHULayout = new QHBoxLayout();
     labelMinHU = new QLabel("Min HU:");
     spinMinHU = new QSpinBox();
     spinMinHU->setMinimum(-3000);
     spinMinHU->setMaximum(3000);
     spinMinHU->setValue(-1000);
-    spinMinHU->setEnabled(false); // Deshabilitado por ahora
+    spinMinHU->setSingleStep(10);
+    spinMinHU->setEnabled(false);
+    spinMinHU->setMinimumWidth(100);
     minHULayout->addWidget(labelMinHU);
     minHULayout->addWidget(spinMinHU);
+    minHULayout->addStretch();
     
+    // Max HU
     QHBoxLayout* maxHULayout = new QHBoxLayout();
     labelMaxHU = new QLabel("Max HU:");
     spinMaxHU = new QSpinBox();
     spinMaxHU->setMinimum(-3000);
     spinMaxHU->setMaximum(3000);
     spinMaxHU->setValue(3000);
-    spinMaxHU->setEnabled(false); // Deshabilitado por ahora
+    spinMaxHU->setSingleStep(10);
+    spinMaxHU->setEnabled(false);
+    spinMaxHU->setMinimumWidth(100);
     maxHULayout->addWidget(labelMaxHU);
     maxHULayout->addWidget(spinMaxHU);
+    maxHULayout->addStretch();
     
     huLayout->addLayout(minHULayout);
     huLayout->addLayout(maxHULayout);
+    
+    // Botones de presets
+    QHBoxLayout* presetsLayout = new QHBoxLayout();
+    QPushButton* btnPresetLungs = new QPushButton("Pulmones");
+    QPushButton* btnPresetBones = new QPushButton("Huesos");
+    QPushButton* btnPresetAorta = new QPushButton("Aorta");
+    
+    btnPresetLungs->setMaximumWidth(80);
+    btnPresetBones->setMaximumWidth(80);
+    btnPresetAorta->setMaximumWidth(80);
+    
+    presetsLayout->addWidget(btnPresetLungs);
+    presetsLayout->addWidget(btnPresetBones);
+    presetsLayout->addWidget(btnPresetAorta);
+    presetsLayout->addStretch();
+    huLayout->addLayout(presetsLayout);
+    
+    // Conectar checkbox para habilitar/deshabilitar
+    connect(checkUseCustomHU, &QCheckBox::toggled, [this](bool checked) {
+        spinMinHU->setEnabled(checked);
+        spinMaxHU->setEnabled(checked);
+    });
+    
+    // Conectar botones de presets
+    connect(btnPresetLungs, &QPushButton::clicked, [this]() {
+        checkUseCustomHU->setChecked(true);
+        spinMinHU->setValue(-1000);
+        spinMaxHU->setValue(-400);
+        logMessage(textSegmentationLog, "[PRESET] Pulmones: -1000 a -400 HU");
+    });
+    
+    connect(btnPresetBones, &QPushButton::clicked, [this]() {
+        checkUseCustomHU->setChecked(true);
+        spinMinHU->setValue(200);
+        spinMaxHU->setValue(3000);
+        logMessage(textSegmentationLog, "[PRESET] Huesos: 200 a 3000 HU");
+    });
+    
+    connect(btnPresetAorta, &QPushButton::clicked, [this]() {
+        checkUseCustomHU->setChecked(true);
+        spinMinHU->setValue(120);
+        spinMaxHU->setValue(400);
+        logMessage(textSegmentationLog, "[PRESET] Aorta: 120 a 400 HU");
+    });
     
     controlLayout->addWidget(huGroup);
     controlLayout->addSpacing(10);
@@ -1272,9 +1331,21 @@ void MainWindow::onSegmentLungs() {
         // Actualizar imagen de entrada en la UI
         updateImageDisplay(labelSegmentationInput, displayImage);
         
+        // Determinar rangos HU
+        int minHU = -1000;  // Valores por defecto para pulmones
+        int maxHU = -400;
+        
+        if (checkUseCustomHU->isChecked()) {
+            minHU = spinMinHU->value();
+            maxHU = spinMaxHU->value();
+            logMessage(textSegmentationLog, QString("[INFO] Usando rangos personalizados: %1 a %2 HU").arg(minHU).arg(maxHU));
+        } else {
+            logMessage(textSegmentationLog, QString("[INFO] Usando rangos por defecto: %1 a %2 HU").arg(minHU).arg(maxHU));
+        }
+        
         // Llamar al algoritmo de segmentación
         logMessage(textSegmentationLog, "[1/3] Aplicando algoritmo de segmentación de pulmones...");
-        auto lungRegions = Segmentation::segmentLungs(inputImage);
+        auto lungRegions = Segmentation::segmentLungsCustom(inputImage, minHU, maxHU);
         
         logMessage(textSegmentationLog, QString("[2/3] Detectadas %1 regiones pulmonares").arg(lungRegions.size()));
         
@@ -1345,8 +1416,20 @@ void MainWindow::onSegmentBones() {
         
         updateImageDisplay(labelSegmentationInput, displayImage);
         
+        // Determinar rangos HU
+        int minHU = 200;   // Valores por defecto para huesos
+        int maxHU = 3000;
+        
+        if (checkUseCustomHU->isChecked()) {
+            minHU = spinMinHU->value();
+            maxHU = spinMaxHU->value();
+            logMessage(textSegmentationLog, QString("[INFO] Usando rangos personalizados: %1 a %2 HU").arg(minHU).arg(maxHU));
+        } else {
+            logMessage(textSegmentationLog, QString("[INFO] Usando rangos por defecto: %1 a %2 HU").arg(minHU).arg(maxHU));
+        }
+        
         logMessage(textSegmentationLog, "[1/3] Aplicando algoritmo de segmentación de huesos...");
-        auto boneRegions = Segmentation::segmentBones(inputImage);
+        auto boneRegions = Segmentation::segmentBonesCustom(inputImage, minHU, maxHU);
         
         logMessage(textSegmentationLog, QString("[2/3] Detectadas %1 regiones óseas").arg(boneRegions.size()));
         
@@ -1410,8 +1493,20 @@ void MainWindow::onSegmentAorta() {
         
         updateImageDisplay(labelSegmentationInput, displayImage);
         
+        // Rangos HU personalizables para aorta
+        int minHU = 120;
+        int maxHU = 400;
+        
+        if (checkUseCustomHU->isChecked()) {
+            minHU = spinMinHU->value();
+            maxHU = spinMaxHU->value();
+            logMessage(textSegmentationLog, QString("[INFO] Usando rango HU PERSONALIZADO: [%1, %2]").arg(minHU).arg(maxHU));
+        } else {
+            logMessage(textSegmentationLog, QString("[INFO] Usando rango HU por defecto: [%1, %2]").arg(minHU).arg(maxHU));
+        }
+        
         logMessage(textSegmentationLog, "[1/3] Aplicando algoritmo de segmentación de aorta...");
-        auto aortaRegions = Segmentation::segmentAorta(inputImage);
+        auto aortaRegions = Segmentation::segmentAortaCustom(inputImage, minHU, maxHU);
         
         logMessage(textSegmentationLog, QString("[2/3] Detectadas %1 regiones de aorta").arg(aortaRegions.size()));
         

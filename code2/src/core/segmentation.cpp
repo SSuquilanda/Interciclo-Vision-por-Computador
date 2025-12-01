@@ -211,4 +211,138 @@ std::vector<SegmentedRegion> segmentAorta(const cv::Mat& image) {
     return aortaRegions;
 }
 
+// Umbrales personalizados
+
+std::vector<SegmentedRegion> segmentLungsCustom(const cv::Mat& image, int minHU, int maxHU) {
+    std::vector<SegmentedRegion> finalLungs;
+    
+    // Umbralización con rangos personalizados
+    cv::Mat mask = thresholdByRange(image, minHU, maxHU);
+    
+    // Obtener candidatos (Area mínima 1000 para ignorar ruido pequeño)
+    auto candidates = findConnectedComponents(mask, 1000);
+    
+    // eliminar aire externo
+    std::vector<SegmentedRegion> validCandidates;
+    for (const auto& reg : candidates) {
+        if (!touchesBorder(mask, reg.boundingBox)) {
+            validCandidates.push_back(reg);
+        }
+    }
+    
+    // tomar los dos mas grandes
+    std::sort(validCandidates.begin(), validCandidates.end(), 
+              [](const auto& a, const auto& b) { return a.area > b.area; });
+    
+    for (size_t i = 0; i < std::min(size_t(2), validCandidates.size()); ++i) {
+        auto lung = validCandidates[i];
+        // Etiquetar
+        lung.label = (lung.centroid.x < image.cols / 2) ? "Pulmon Derecho" : "Pulmon Izquierdo";
+        lung.color = cv::Scalar(255, 0, 0); // Azul (BGR)
+        finalLungs.push_back(lung);
+    }
+    
+    return finalLungs;
+}
+
+std::vector<SegmentedRegion> segmentBonesCustom(const cv::Mat& image, int minHU, int maxHU) {
+    std::vector<SegmentedRegion> boneRegions;
+    cv::Point2d imgCenter(image.cols / 2.0, image.rows / 2.0);
+
+    // Umbralización con rangos personalizados
+    cv::Mat mask = thresholdByRange(image, minHU, maxHU);
+
+    // Componentes Conectados
+    auto components = findConnectedComponents(mask, 80);
+
+    // Clasificación Anatómica
+    for (auto& region : components) {
+        // Morfología local para limpiar hueso
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
+        cv::morphologyEx(region.mask, region.mask, cv::MORPH_OPEN, kernel);
+        cv::morphologyEx(region.mask, region.mask, cv::MORPH_CLOSE, kernel);
+
+        // Recalcular área real tras limpieza
+        region.area = cv::countNonZero(region.mask);
+        if (region.area < 80) continue;
+
+        // Métricas geométricas
+        double distX = std::abs(region.centroid.x - imgCenter.x);
+        double distY = region.centroid.y - imgCenter.y; // + abajo, - arriba
+        double distTotal = cv::norm(region.centroid - imgCenter);
+
+        // Clasificación por posición y geometría
+        if (distX < 50.0 && region.area > 300) {
+            region.label = "Columna";
+            region.color = cv::Scalar(0, 255, 255); // Amarillo
+        } else if (distX < 60.0 && distY < -80.0 && region.area < 300) {
+            region.label = "Esternon";
+            region.color = cv::Scalar(0, 165, 255); // Naranja
+        } else {
+            region.label = "Costilla";
+            region.color = cv::Scalar(0, 128, 255); // Naranja Claro
+        }
+
+        boneRegions.push_back(region);
+    }
+
+    return boneRegions;
+}
+
+std::vector<SegmentedRegion> segmentAortaCustom(const cv::Mat& image, int minHU, int maxHU) {
+    std::vector<SegmentedRegion> aortaRegions;
+    cv::Point2d imgCenter(image.cols / 2.0, image.rows / 2.0);
+
+    // Umbralización con rangos personalizados
+    cv::Mat mask = thresholdByRange(image, minHU, maxHU);
+
+    // Componentes Conectados
+    auto components = findConnectedComponents(mask, 30);
+
+    // Filtrado Anatómico (arterias suelen estar centradas y en zona media-alta)
+    std::vector<SegmentedRegion> filteredArteries;
+    for (auto& region : components) {
+        double distX = std::abs(region.centroid.x - imgCenter.x);
+        double distY = imgCenter.y - region.centroid.y; // + arriba, - abajo
+
+        // Criterios: zona central (distX < 120), anterior (distY > -50), tamaño 30-2000
+        if (distX < 120.0 && distY > -50.0 && region.area >= 30 && region.area <= 2000) {
+            filteredArteries.push_back(region);
+        }
+    }
+
+    // Procesamiento Morfológico Conjunto
+    if (!filteredArteries.empty()) {
+        // Unir candidatos en una sola máscara
+        cv::Mat combinedMask = cv::Mat::zeros(image.size(), CV_8U);
+        for (const auto& r : filteredArteries) {
+            cv::bitwise_or(combinedMask, r.mask, combinedMask);
+        }
+        
+        // Cierre + Dilatación para conectar fragmentos
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+        cv::morphologyEx(combinedMask, combinedMask, cv::MORPH_CLOSE, kernel);
+        cv::dilate(combinedMask, combinedMask, kernel);
+        
+        // Buscar el componente final más grande y centrado
+        auto finalComponents = findConnectedComponents(combinedMask, 200);
+        
+        if (!finalComponents.empty()) {
+            std::sort(finalComponents.begin(), finalComponents.end(),
+                [](const auto& a, const auto& b) { return a.area > b.area; });
+            
+            auto& largest = finalComponents[0];
+            double dist = cv::norm(largest.centroid - imgCenter);
+            
+            if (dist < 120.0) {
+                largest.label = "Aorta / Arterias";
+                largest.color = cv::Scalar(0, 255, 0); // Verde
+                aortaRegions.push_back(largest);
+            }
+        }
+    }
+    
+    return aortaRegions;
+}
+
 } // namespace Segmentation

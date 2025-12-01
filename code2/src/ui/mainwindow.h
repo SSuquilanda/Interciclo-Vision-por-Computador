@@ -135,6 +135,7 @@ private:
     QPushButton* btnSegmentBones;
     QPushButton* btnSegmentAorta;
     QPushButton* btnClearSegmentation;
+    QCheckBox* checkUseCustomHU;
     QSpinBox* spinMinHU;
     QSpinBox* spinMaxHU;
     QLabel* labelMinHU;
