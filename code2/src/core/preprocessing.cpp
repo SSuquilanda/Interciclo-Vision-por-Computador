@@ -45,9 +45,7 @@ namespace Preprocessing {
         return result;
     }
 
-   // ==========================================
-    // IMPLEMENTACIÓN DnCNN (RED NEURONAL)
-    // ==========================================
+    // Implementar DnCNN
 
     DnCNNDenoiser::DnCNNDenoiser() : modelLoaded(false) {}
 
@@ -79,7 +77,7 @@ namespace Preprocessing {
         if (!modelLoaded) return noisyImage.clone();
 
         try {
-            // 1. Convertir a Float32 y normalizar [0,1]
+            // Convertir a Float32 y normalizar [0,1]
             cv::Mat inputFloat;
             int originalType = noisyImage.type();
             
@@ -94,28 +92,28 @@ namespace Preprocessing {
                 inputFloat = noisyImage.clone();
             }
             
-            // 2. Asegurar single-channel
+            // Asegurar single-channel
             if (inputFloat.channels() > 1) {
                 cv::cvtColor(inputFloat, inputFloat, cv::COLOR_BGR2GRAY);
             }
 
-            // 3. Crear Blob (NCHW: 1 x 1 x H x W)
+            // Crear Blob (NCHW: 1 x 1 x H x W)
             cv::Mat blob = cv::dnn::blobFromImage(
                 inputFloat,
-                1.0,                    // NO re-escalar (ya está en [0,1])
+                1.0,                    // No re-escalar
                 inputFloat.size(),      
-                cv::Scalar(0),          // NO restar mean
+                cv::Scalar(0),          // No restar mean
                 false,                  
                 false                   
             );
             
-            // 4. Inferencia
+            // Inferencia
             net.setInput(blob);
             cv::Mat outputBlob = net.forward();
 
-            // 5. CORRECCIÓN CRÍTICA: Extraer imagen correctamente del blob de SALIDA
+            // Extraer imagen correctamente del blob de salida
             // El blob tiene formato NCHW (1 x 1 x H x W)
-            // Necesitamos extraer el canal [0][0]
+            // Se debe extraer el canal [0][0]
             
             cv::Mat denoisedFloat;
             
@@ -128,11 +126,11 @@ namespace Preprocessing {
             denoisedFloat = cv::Mat(height, width, CV_32F, outputBlob.ptr<float>(0, 0));
             denoisedFloat = denoisedFloat.clone(); // Hacer copia profunda
             
-            // 6. Clamp a [0, 1] para evitar valores fuera de rango
+            // Clamp a [0, 1] para evitar valores fuera de rango
             cv::max(denoisedFloat, 0.0, denoisedFloat);
             cv::min(denoisedFloat, 1.0, denoisedFloat);
 
-            // 7. Convertir de vuelta al tipo original
+            // Convertir de vuelta al tipo original
             cv::Mat result;
             
             if (originalType == CV_8U) {
@@ -153,9 +151,7 @@ namespace Preprocessing {
         }
     }
 
-    // ==========================================
-    // FUNCIÓN HELPER PARA USAR DnCNN FÁCILMENTE
-    // ==========================================
+    // Aplicar DnCNN fácilmente
 
     cv::Mat applyDnCNN(const cv::Mat& noisyImage, const std::string& modelPath) {
         static DnCNNDenoiser denoiser;
@@ -164,7 +160,7 @@ namespace Preprocessing {
         // Cargar el modelo solo si es diferente o no está cargado
         if (!denoiser.isLoaded() || lastModelPath != modelPath) {
             if (!denoiser.loadModel(modelPath)) {
-                std::cerr << "[Error] No se pudo cargar DnCNN. Retornando imagen original." << std::endl;
+                std::cerr << "Error: No se pudo cargar DnCNN. Retornando imagen original." << std::endl;
                 return noisyImage.clone();
             }
             lastModelPath = modelPath;
@@ -173,14 +169,12 @@ namespace Preprocessing {
         return denoiser.denoise(noisyImage);
     }
 
-    // ==========================================
-    // MÉTRICAS (PSNR / SNR)
-    // ==========================================
+    // Métricas
 
     double calculatePSNR(const cv::Mat& I1, const cv::Mat& I2) {
         cv::Mat s1;
         cv::absdiff(I1, I2, s1);       // |I1 - I2|
-        s1.convertTo(s1, CV_32F);      // No podemos elevar al cuadrado en 8-bit
+        s1.convertTo(s1, CV_32F);      // No se puede elevar al cuadrado en 8-bit
         s1 = s1.mul(s1);               // (I1 - I2)^2
 
         cv::Scalar s = cv::sum(s1);    // Suma de elementos

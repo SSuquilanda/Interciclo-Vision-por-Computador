@@ -46,7 +46,7 @@ namespace Morphology {
         cv::Mat filled = mask.clone();
         cv::Mat floodFillMask = cv::Mat::zeros(mask.rows + 2, mask.cols + 2, CV_8U);
         
-        // Invertir y rellenar desde el borde (asumiendo fondo negro)
+        // Invertir y rellenar desde el borde
         cv::floodFill(filled, floodFillMask, cv::Point(0, 0), cv::Scalar(255));
         
         // Invertir de nuevo para obtener los huecos llenos

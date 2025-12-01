@@ -8,7 +8,7 @@
 
 namespace Preprocessing {
 
-    // --- FILTROS CLÁSICOS (Funciones estáticas) ---
+    // Filtros comunes
     cv::Mat convertToGrayscale(const cv::Mat& image);
     cv::Mat normalizeImage(const cv::Mat& image); 
     cv::Mat applyGaussianFilter(const cv::Mat& image, int kernelSize = 3, double sigma = 0);
@@ -16,7 +16,7 @@ namespace Preprocessing {
     cv::Mat applyBilateralFilter(const cv::Mat& image, int d = 9, double sigmaColor = 75, double sigmaSpace = 75);
     cv::Mat applyCLAHE(const cv::Mat& image, double clipLimit = 2.0, cv::Size tileGridSize = cv::Size(8, 8));
 
-    // --- INTELIGENCIA ARTIFICIAL (Clase DnCNN) ---
+    // Inteligencia Artificial (Clase DnCNN)
     class DnCNNDenoiser {
     private:
         cv::dnn::Net net;
@@ -25,7 +25,7 @@ namespace Preprocessing {
     public:
         DnCNNDenoiser();
         
-        // Carga el modelo .onnx (Retorna true si tuvo éxito)
+        // Cargar el modelo .onnx
         bool loadModel(const std::string& onnxPath);
         
         // Procesa la imagen
@@ -34,10 +34,10 @@ namespace Preprocessing {
         bool isLoaded() const { return modelLoaded; }
     };
 
-    // --- FUNCIÓN HELPER PARA DnCNN (Uso simplificado) ---
+    // Aplicar DnCNN fácilmente
     cv::Mat applyDnCNN(const cv::Mat& noisyImage, const std::string& modelPath);
 
-    // --- MÉTRICAS DE CALIDAD (Para la pestaña Métricas) ---
+    // Métricas
     double calculatePSNR(const cv::Mat& original, const cv::Mat& processed);
     double calculateSNR(const cv::Mat& image);
 

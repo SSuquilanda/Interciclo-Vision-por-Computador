@@ -5,13 +5,11 @@
 
 namespace Segmentation {
 
-// ============================================================================
-// FUNCIONES AUXILIARES (Traídas de tus archivos anteriores)
-// ============================================================================
+// Funciones auxiliares
 
 cv::Mat thresholdByRange(const cv::Mat& image, double minVal, double maxVal) {
     cv::Mat mask;
-    // inRange maneja rangos inclusivos. Funciona bien para 8-bit y 16-bit.
+    // inRange maneja rangos inclusivos.
     cv::inRange(image, cv::Scalar(minVal), cv::Scalar(maxVal), mask);
     return mask;
 }
@@ -59,21 +57,19 @@ static bool touchesBorder(const cv::Mat& mask, const cv::Rect& bbox) {
 }
 
 
-// ============================================================================
-// IMPLEMENTACIÓN DE PIPELINES DE ÓRGANOS
-// ============================================================================
+// Pipelines de Segmentación
 
-// 1. PULMONES (Migrado de pipeline_pulmones.cpp)
+// Pulmones
 std::vector<SegmentedRegion> segmentLungs(const cv::Mat& image) {
     std::vector<SegmentedRegion> finalLungs;
     
-    // A. Umbralización (Aire: -1000 a -400 HU)
+    // Umbralización (Aire: -1000 a -400 HU)
     cv::Mat mask = thresholdByRange(image, -1000, -400);
     
-    // B. Obtener candidatos (Area mínima 1000 para ignorar ruido pequeño)
+    // Obtener candidatos (Area mínima 1000 para ignorar ruido pequeño)
     auto candidates = findConnectedComponents(mask, 1000);
     
-    // C. Filtrado: Eliminar aire externo (que toca los bordes)
+    // Filtrado: Eliminar aire externo (que toca los bordes)
     std::vector<SegmentedRegion> validCandidates;
     for (const auto& reg : candidates) {
         if (!touchesBorder(mask, reg.boundingBox)) {
@@ -81,13 +77,13 @@ std::vector<SegmentedRegion> segmentLungs(const cv::Mat& image) {
         }
     }
     
-    // D. Selección: Tomar los 2 más grandes (Pulmón Izq y Der)
+    // Selección: Tomar los 2 más grandes (Pulmón Izq y Der)
     std::sort(validCandidates.begin(), validCandidates.end(), 
               [](const auto& a, const auto& b) { return a.area > b.area; });
     
     for (size_t i = 0; i < std::min(size_t(2), validCandidates.size()); ++i) {
         auto lung = validCandidates[i];
-        // Etiquetar izquierda/derecha basado en centroide X
+        // Etiquetar
         lung.label = (lung.centroid.x < image.cols / 2) ? "Pulmon Derecho" : "Pulmon Izquierdo";
         lung.color = cv::Scalar(255, 0, 0); // Azul (BGR)
         finalLungs.push_back(lung);
@@ -96,21 +92,20 @@ std::vector<SegmentedRegion> segmentLungs(const cv::Mat& image) {
     return finalLungs;
 }
 
-// 2. HUESOS (Migrado de pipeline_huesos.cpp con CORRECCIÓN CENTRO)
+// Huesos
 std::vector<SegmentedRegion> segmentBones(const cv::Mat& image) {
     std::vector<SegmentedRegion> boneRegions;
     cv::Point2d imgCenter(image.cols / 2.0, image.rows / 2.0);
 
-    // A. Umbralización (Hueso: 200 a 3000 HU)
+    // Umbralización (Hueso: 200 a 3000 HU)
     cv::Mat mask = thresholdByRange(image, 200, 3000);
 
-    // B. Componentes Conectados (Area min 80)
+    // Componentes Conectados (Area min 80)
     auto components = findConnectedComponents(mask, 80);
 
-    // C. Clasificación Anatómica
+    // Clasificación Anatómica
     for (auto& region : components) {
         // Morfología local para limpiar hueso
-        // Nota: Asumimos que Morphology::opening existe en tu archivo morphology.h
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
         cv::morphologyEx(region.mask, region.mask, cv::MORPH_OPEN, kernel);
         cv::morphologyEx(region.mask, region.mask, cv::MORPH_CLOSE, kernel);
@@ -143,7 +138,6 @@ std::vector<SegmentedRegion> segmentBones(const cv::Mat& image) {
             boneRegions.push_back(region);
         }
         else if (region.area > 300) {
-            // CORRECCIÓN CRÍTICA: Ignorar centro (aorta/calcificaciones)
             if (distTotal > 60) { 
                 region.label = "Hueso (Otro)";
                 region.color = cv::Scalar(100, 100, 100); // Gris
@@ -154,18 +148,18 @@ std::vector<SegmentedRegion> segmentBones(const cv::Mat& image) {
     return boneRegions;
 }
 
-// 3. AORTA (Migrado de pipeline_aorta.cpp)
+// Aorta
 std::vector<SegmentedRegion> segmentAorta(const cv::Mat& image) {
     std::vector<SegmentedRegion> aortaRegions;
     cv::Point2d imgCenter(image.cols / 2.0, image.rows / 2.0);
 
-    // A. Umbralización (Vasos con contraste: 30 a 120 HU)
+    // Umbralización (Vasos con contraste: 30 a 120 HU)
     cv::Mat mask = thresholdByRange(image, 30, 120);
 
-    // B. Candidatos iniciales
+    // Candidatos iniciales
     auto candidates = findConnectedComponents(mask, 200); // minArea 200
 
-    // C. Filtros Anatómicos (Lógica de tu compañera)
+    // Filtros Anatómicos (Lógica de tu compañera)
     std::vector<SegmentedRegion> filteredArteries;
     for (const auto& region : candidates) {
         if (region.area > 8000) continue; // maxArea
@@ -183,7 +177,7 @@ std::vector<SegmentedRegion> segmentAorta(const cv::Mat& image) {
         }
     }
 
-    // D. Procesamiento Morfológico Conjunto
+    // Procesamiento Morfológico Conjunto
     if (!filteredArteries.empty()) {
         // Unir candidatos en una sola máscara
         cv::Mat combinedMask = cv::Mat::zeros(image.size(), CV_8U);

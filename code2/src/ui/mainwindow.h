@@ -34,13 +34,10 @@
 #include "../core/segmentation.h"
 #include "../core/morphology.h"
 
-/**
- * @brief Estructura para mantener el estado del slice actual
- * Evita variables globales y centraliza el contexto de procesamiento
- */
+// Estructura para mantener el estado del slice actual
 struct SliceContext {
-    cv::Mat originalRaw;      // 16-bit (Para cálculos HU)
-    cv::Mat original8bit;     // 8-bit (Para visualización)
+    cv::Mat originalRaw;      // 16-bit para cálculos HU
+    cv::Mat original8bit;     // 8-bit para visualización
     cv::Mat preprocessed;     // Salida de Preprocessing
     cv::Mat mask;             // Salida de Segmentation
     cv::Mat morphologyMask;   // Salida de Morphology
@@ -74,35 +71,35 @@ public:
     ~MainWindow();
 
 private slots:
-    // === PESTAÑA 1: I/O Dataset ===
+    // Pestaña de I/O
     void onLoadDataset();
     void onSliceChanged(int value);
     void onFileListItemClicked(QListWidgetItem* item);
     
-    // === PESTAÑA 2: Preprocesamiento ===
+    // Pestaña de Preprocesamiento
     void onApplyPreprocessing();
     
-    // === PESTAÑA 3: Segmentación ===
+    // Pestaña de Segmentación
     void onSegmentLungs();
     void onSegmentBones();
     void onSegmentAorta();
     void onClearSegmentation();
     
-    // === PESTAÑA 4: Morfología ===
+    // Pestaña de Morfología
     void onApplyMorphology();
     
-    // === PESTAÑA 5: Visualización ===
+    // Pestaña de Visualización
     void onUpdateVisualization();
     void onResetVisualization();
     
-    // === PESTAÑA 6: Métricas ===
+    // Pestaña de Métricas
     void onCalculateMetrics();
 
 private:
     // === WIDGETS PRINCIPALES ===
     QTabWidget* tabWidget;
     
-    // === PESTAÑA 1: I/O Dataset ===
+    // Pestaña de I/O
     QWidget* tabIO;
     QLabel* labelOriginalImage;
     QPushButton* btnLoadDataset;
@@ -110,22 +107,27 @@ private:
     QLabel* labelSliceInfo;
     QListWidget* fileListWidget;
     
-    // === PESTAÑA 2: Preprocesamiento ===
+    // Pestaña de Preprocesamiento
     QWidget* tabPreprocessing;
     QLabel* labelOriginalPreview;        // Imagen Original (Izquierda)
     QLabel* labelPreprocessedImage;      // Imagen Procesada (Derecha)
     QCheckBox* checkUseDnCNN;
     QCheckBox* checkUseGaussian;
     QCheckBox* checkUseMedian;
+    QCheckBox* checkUseBilateral;
     QCheckBox* checkUseCLAHE;
     QSlider* sliderGaussianKernel;
     QLabel* labelGaussianKernelValue;
     QSlider* sliderMedianKernel;
     QLabel* labelMedianKernelValue;
+    QSlider* sliderBilateralD;
+    QLabel* labelBilateralDValue;
+    QSlider* sliderBilateralSigmaColor;
+    QLabel* labelBilateralSigmaColorValue;
     QPushButton* btnApplyPreprocessing;
     QTextEdit* textPreprocessingLog;
     
-    // === PESTAÑA 3: Segmentación ===
+    // Pestaña de Segmentación
     QWidget* tabSegmentation;
     QLabel* labelSegmentationInput;     // Imagen Preprocesada o Original (Izquierda)
     QLabel* labelSegmentedImage;        // Máscara de Segmentación (Derecha)
@@ -143,7 +145,7 @@ private:
     // Almacenar regiones segmentadas actuales
     std::vector<Segmentation::SegmentedRegion> currentSegmentedRegions;
     
-    // === PESTAÑA 4: Morfología ===
+    // Pestaña de Morfología
     QWidget* tabMorphology;
     QLabel* labelMorphologyInput;       // Máscara de entrada (Izquierda)
     QLabel* labelMorphologyOutput;      // Máscara refinada (Derecha)
@@ -156,7 +158,7 @@ private:
     QPushButton* btnFillHoles;
     QTextEdit* textMorphologyLog;
     
-    // === PESTAÑA 5: Visualización ===
+    // Pestaña de Visualización
     QWidget* tabVisualization;
     QLabel* labelVisualizationImage;
     QCheckBox* checkShowOverlay;
@@ -167,7 +169,7 @@ private:
     QPushButton* btnUpdateVisualization;
     QPushButton* btnResetVisualization;
     
-    // === PESTAÑA 6: Métricas ===
+    // Pestaña de Métricas
     QWidget* tabMetrics;
     QPushButton* btnCalculateMetrics;
     QTableWidget* tableMetrics;

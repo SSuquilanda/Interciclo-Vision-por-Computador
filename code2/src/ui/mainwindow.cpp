@@ -371,6 +371,52 @@ void MainWindow::setupTabPreprocessing() {
     
     controlLayout->addSpacing(10);
     
+    // === Checkbox: Filtro Bilateral ===
+    checkUseBilateral = new QCheckBox("Filtro Bilateral");
+    controlLayout->addWidget(checkUseBilateral);
+    
+    QHBoxLayout* bilateralDLayout = new QHBoxLayout();
+    bilateralDLayout->addWidget(new QLabel("Diámetro (d):"));
+    sliderBilateralD = new QSlider(Qt::Horizontal);
+    sliderBilateralD->setMinimum(3);
+    sliderBilateralD->setMaximum(15);
+    sliderBilateralD->setValue(9);
+    sliderBilateralD->setSingleStep(2);
+    sliderBilateralD->setEnabled(false);
+    labelBilateralDValue = new QLabel("9");
+    labelBilateralDValue->setMinimumWidth(30);
+    bilateralDLayout->addWidget(sliderBilateralD);
+    bilateralDLayout->addWidget(labelBilateralDValue);
+    controlLayout->addLayout(bilateralDLayout);
+    
+    QHBoxLayout* bilateralSigmaLayout = new QHBoxLayout();
+    bilateralSigmaLayout->addWidget(new QLabel("Sigma Color:"));
+    sliderBilateralSigmaColor = new QSlider(Qt::Horizontal);
+    sliderBilateralSigmaColor->setMinimum(10);
+    sliderBilateralSigmaColor->setMaximum(200);
+    sliderBilateralSigmaColor->setValue(75);
+    sliderBilateralSigmaColor->setSingleStep(5);
+    sliderBilateralSigmaColor->setEnabled(false);
+    labelBilateralSigmaColorValue = new QLabel("75");
+    labelBilateralSigmaColorValue->setMinimumWidth(30);
+    bilateralSigmaLayout->addWidget(sliderBilateralSigmaColor);
+    bilateralSigmaLayout->addWidget(labelBilateralSigmaColorValue);
+    controlLayout->addLayout(bilateralSigmaLayout);
+    
+    connect(checkUseBilateral, &QCheckBox::toggled, [this](bool checked) {
+        sliderBilateralD->setEnabled(checked);
+        sliderBilateralSigmaColor->setEnabled(checked);
+    });
+    connect(sliderBilateralD, &QSlider::valueChanged, [this](int value) {
+        if (value % 2 == 0) value++;
+        labelBilateralDValue->setText(QString::number(value));
+    });
+    connect(sliderBilateralSigmaColor, &QSlider::valueChanged, [this](int value) {
+        labelBilateralSigmaColorValue->setText(QString::number(value));
+    });
+    
+    controlLayout->addSpacing(10);
+    
     // === Checkbox: CLAHE ===
     checkUseCLAHE = new QCheckBox("CLAHE (Mejora de Contraste)");
     controlLayout->addWidget(checkUseCLAHE);
@@ -1141,15 +1187,28 @@ void MainWindow::onApplyPreprocessing() {
             int kernel = sliderMedianKernel->value();
             if (kernel % 2 == 0) kernel++;
             
-            logMessage(textPreprocessingLog, QString("[3/4] Aplicando Filtro Mediana (kernel=%1)...").arg(kernel));
+            logMessage(textPreprocessingLog, QString("[3/5] Aplicando Filtro Mediana (kernel=%1)...").arg(kernel));
             working = Preprocessing::applyMedianFilter(working, kernel);
             logMessage(textPreprocessingLog, "   ✓ Filtro Mediana aplicado");
             filtersApplied++;
         }
         
-        // === 4. CLAHE ===
+        // === 4. Filtro Bilateral ===
+        if (checkUseBilateral->isChecked()) {
+            int d = sliderBilateralD->value();
+            if (d % 2 == 0) d++;
+            double sigmaColor = sliderBilateralSigmaColor->value();
+            double sigmaSpace = sigmaColor; // Usar mismo valor para sigmaSpace
+            
+            logMessage(textPreprocessingLog, QString("[4/5] Aplicando Filtro Bilateral (d=%1, sigmaColor=%2)...").arg(d).arg(sigmaColor));
+            working = Preprocessing::applyBilateralFilter(working, d, sigmaColor, sigmaSpace);
+            logMessage(textPreprocessingLog, "   ✓ Filtro Bilateral aplicado");
+            filtersApplied++;
+        }
+        
+        // === 5. CLAHE ===
         if (checkUseCLAHE->isChecked()) {
-            logMessage(textPreprocessingLog, "[4/4] Aplicando CLAHE (Mejora de Contraste)...");
+            logMessage(textPreprocessingLog, "[5/5] Aplicando CLAHE (Mejora de Contraste)...");
             working = Preprocessing::applyCLAHE(working);
             logMessage(textPreprocessingLog, "   ✓ CLAHE aplicado");
             filtersApplied++;
@@ -1196,19 +1255,18 @@ void MainWindow::onSegmentLungs() {
     logMessage(textSegmentationLog, "[INICIO] Segmentando PULMONES...");
     
     try {
-        // Usar imagen preprocesada si está disponible y el checkbox está marcado
+        // IMPORTANTE: Los algoritmos de segmentación necesitan valores HU de la imagen 16-bit original
+        // El preprocesamiento (CLAHE, filtros) trabaja con 8-bit y NO preserva valores HU
+        // Por eso SIEMPRE usamos originalRaw para segmentar
         cv::Mat inputImage = currentSlice.originalRaw;
         cv::Mat displayImage = currentSlice.original8bit;
         
         if (checkUsePreprocessed->isChecked() && !currentSlice.preprocessed.empty()) {
-            logMessage(textSegmentationLog, "[INFO] Usando imagen PREPROCESADA para segmentación");
+            logMessage(textSegmentationLog, "[INFO] Mostrando imagen preprocesada (referencia visual únicamente)");
+            logMessage(textSegmentationLog, "[INFO] Segmentación usa ORIGINAL 16-bit para valores HU correctos");
             displayImage = currentSlice.preprocessed;
-            // Convertir la imagen preprocesada a 16-bit para la segmentación
-            cv::Mat temp16bit;
-            currentSlice.preprocessed.convertTo(temp16bit, CV_16U, 256.0);  // Escalar a rango 16-bit
-            inputImage = temp16bit;
         } else {
-            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL para segmentación");
+            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL para segmentación y visualización");
         }
         
         // Actualizar imagen de entrada en la UI
@@ -1272,19 +1330,17 @@ void MainWindow::onSegmentBones() {
     logMessage(textSegmentationLog, "[INICIO] Segmentando HUESOS...");
     
     try {
-        // Usar imagen preprocesada si está disponible y el checkbox está marcado
+        // IMPORTANTE: Segmentación de huesos requiere valores HU específicos (>200 HU)
+        // Siempre usar originalRaw que tiene los valores correctos
         cv::Mat inputImage = currentSlice.originalRaw;
         cv::Mat displayImage = currentSlice.original8bit;
         
         if (checkUsePreprocessed->isChecked() && !currentSlice.preprocessed.empty()) {
-            logMessage(textSegmentationLog, "[INFO] Usando imagen PREPROCESADA para segmentación");
+            logMessage(textSegmentationLog, "[INFO] Mostrando imagen preprocesada (referencia visual)");
+            logMessage(textSegmentationLog, "[INFO] Segmentación usa ORIGINAL 16-bit para umbrales HU");
             displayImage = currentSlice.preprocessed;
-            // Convertir la imagen preprocesada a 16-bit para la segmentación
-            cv::Mat temp16bit;
-            currentSlice.preprocessed.convertTo(temp16bit, CV_16U, 256.0);
-            inputImage = temp16bit;
         } else {
-            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL para segmentación");
+            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL");
         }
         
         updateImageDisplay(labelSegmentationInput, displayImage);
@@ -1339,19 +1395,17 @@ void MainWindow::onSegmentAorta() {
     logMessage(textSegmentationLog, "[INICIO] Segmentando AORTA...");
     
     try {
-        // Usar imagen preprocesada si está disponible y el checkbox está marcado
+        // IMPORTANTE: Aorta requiere umbrales HU específicos (tejido blando)
+        // Usar siempre originalRaw para tener valores HU precisos
         cv::Mat inputImage = currentSlice.originalRaw;
         cv::Mat displayImage = currentSlice.original8bit;
         
         if (checkUsePreprocessed->isChecked() && !currentSlice.preprocessed.empty()) {
-            logMessage(textSegmentationLog, "[INFO] Usando imagen PREPROCESADA para segmentación");
+            logMessage(textSegmentationLog, "[INFO] Mostrando preprocesada (solo visualización)");
+            logMessage(textSegmentationLog, "[INFO] Segmentación usa ORIGINAL 16-bit");
             displayImage = currentSlice.preprocessed;
-            // Convertir la imagen preprocesada a 16-bit para la segmentación
-            cv::Mat temp16bit;
-            currentSlice.preprocessed.convertTo(temp16bit, CV_16U, 256.0);
-            inputImage = temp16bit;
         } else {
-            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL para segmentación");
+            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL");
         }
         
         updateImageDisplay(labelSegmentationInput, displayImage);
