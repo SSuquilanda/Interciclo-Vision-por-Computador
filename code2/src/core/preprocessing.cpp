@@ -78,30 +78,79 @@ namespace Preprocessing {
     cv::Mat DnCNNDenoiser::denoise(const cv::Mat& noisyImage) {
         if (!modelLoaded) return noisyImage.clone();
 
-        // Preprocesar: Convertir a Float32 y normalizar [0,1]
-        cv::Mat imgFloat;
-        noisyImage.convertTo(imgFloat, CV_32F, 1.0 / 255.0);
+        try {
+            // 1. Convertir a Float32 y normalizar [0,1]
+            cv::Mat inputFloat;
+            int originalType = noisyImage.type();
+            
+            if (noisyImage.type() == CV_8U) {
+                noisyImage.convertTo(inputFloat, CV_32F, 1.0 / 255.0);
+            } else if (noisyImage.type() == CV_16S || noisyImage.type() == CV_16U) {
+                // Para imágenes CT (16-bit), normalizar a [0, 1]
+                double minVal, maxVal;
+                cv::minMaxLoc(noisyImage, &minVal, &maxVal);
+                noisyImage.convertTo(inputFloat, CV_32F, 1.0/(maxVal - minVal), -minVal/(maxVal - minVal));
+            } else {
+                inputFloat = noisyImage.clone();
+            }
+            
+            // 2. Asegurar single-channel
+            if (inputFloat.channels() > 1) {
+                cv::cvtColor(inputFloat, inputFloat, cv::COLOR_BGR2GRAY);
+            }
 
-        // Crear Blob
-        cv::Mat blob = cv::dnn::blobFromImage(imgFloat);
-        net.setInput(blob);
+            // 3. Crear Blob (NCHW: 1 x 1 x H x W)
+            cv::Mat blob = cv::dnn::blobFromImage(
+                inputFloat,
+                1.0,                    // NO re-escalar (ya está en [0,1])
+                inputFloat.size(),      
+                cv::Scalar(0),          // NO restar mean
+                false,                  
+                false                   
+            );
+            
+            // 4. Inferencia
+            net.setInput(blob);
+            cv::Mat outputBlob = net.forward();
 
-        // Inferencia
-        cv::Mat output = net.forward();
+            // 5. CORRECCIÓN CRÍTICA: Extraer imagen correctamente del blob de SALIDA
+            // El blob tiene formato NCHW (1 x 1 x H x W)
+            // Necesitamos extraer el canal [0][0]
+            
+            cv::Mat denoisedFloat;
+            
+            // Acceso directo a los datos del blob
+            const int* dims = outputBlob.size.p;
+            int height = dims[2];
+            int width = dims[3];
+            
+            // Crear Mat desde los datos del blob
+            denoisedFloat = cv::Mat(height, width, CV_32F, outputBlob.ptr<float>(0, 0));
+            denoisedFloat = denoisedFloat.clone(); // Hacer copia profunda
+            
+            // 6. Clamp a [0, 1] para evitar valores fuera de rango
+            cv::max(denoisedFloat, 0.0, denoisedFloat);
+            cv::min(denoisedFloat, 1.0, denoisedFloat);
 
-        // Postprocesar (DnCNN predice el ruido residual)
-        std::vector<cv::Mat> outImages;
-        cv::dnn::imagesFromBlob(output, outImages);
-        cv::Mat predictedNoise = outImages[0];
-        
-        // Imagen Limpia = Original - Ruido
-        cv::Mat cleanImage = imgFloat - predictedNoise;
-
-        // Regresar a 8-bit [0,255]
-        cv::Mat result;
-        cleanImage.convertTo(result, CV_8U, 255.0);
-        
-        return result;
+            // 7. Convertir de vuelta al tipo original
+            cv::Mat result;
+            
+            if (originalType == CV_8U) {
+                denoisedFloat.convertTo(result, CV_8U, 255.0);
+            } else if (originalType == CV_16S || originalType == CV_16U) {
+                double minVal, maxVal;
+                cv::minMaxLoc(noisyImage, &minVal, &maxVal);
+                denoisedFloat.convertTo(result, originalType, (maxVal - minVal), minVal);
+            } else {
+                result = denoisedFloat;
+            }
+            
+            return result;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "[Excepción en DnCNN denoise]: " << e.what() << std::endl;
+            return noisyImage.clone();
+        }
     }
 
     // ==========================================

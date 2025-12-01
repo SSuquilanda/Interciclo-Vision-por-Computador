@@ -62,9 +62,9 @@ set(CORE_SOURCES
     src/core/morphology.cpp
 )
 
-# Interfaz Gráfica (Frontend) - Currently empty
+# Interfaz Gráfica (Frontend)
 set(UI_SOURCES
-    # UI files will be added here when implemented
+    src/ui/mainwindow.cpp
 )
 
 # ==============================================================================
