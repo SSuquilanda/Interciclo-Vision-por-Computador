@@ -15,6 +15,7 @@ namespace Preprocessing {
     cv::Mat applyGaussianFilter(const cv::Mat& image, int kernelSize = 3, double sigma = 0);
     cv::Mat applyMedianFilter(const cv::Mat& image, int kernelSize = 3);
     cv::Mat applyBilateralFilter(const cv::Mat& image, int d = 9, double sigmaColor = 75, double sigmaSpace = 75);
+    cv::Mat applyHistogramEqualization(const cv::Mat& image);
     cv::Mat applyCLAHE(const cv::Mat& image, double clipLimit = 2.0, cv::Size tileGridSize = cv::Size(8, 8));
 
     // Inteligencia Artificial (Clase DnCNN)

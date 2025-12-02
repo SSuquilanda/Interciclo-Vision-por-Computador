@@ -38,6 +38,12 @@ namespace Preprocessing {
         return result;
     }
 
+    cv::Mat applyHistogramEqualization(const cv::Mat& image) {
+        cv::Mat result;
+        cv::equalizeHist(image, result);
+        return result;
+    }
+
     cv::Mat applyCLAHE(const cv::Mat& image, double clipLimit, cv::Size tileGridSize) {
         cv::Mat result;
         auto clahe = cv::createCLAHE(clipLimit, tileGridSize);

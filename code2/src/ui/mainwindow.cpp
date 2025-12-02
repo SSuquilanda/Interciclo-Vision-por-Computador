@@ -426,8 +426,14 @@ void MainWindow::setupTabPreprocessing() {
     
     controlLayout->addSpacing(10);
     
+    // === Checkbox: Ecualización de Histograma ===
+    checkUseHistogramEq = new QCheckBox("Ecualización de Histograma");
+    controlLayout->addWidget(checkUseHistogramEq);
+    
+    controlLayout->addSpacing(10);
+    
     // === Checkbox: CLAHE ===
-    checkUseCLAHE = new QCheckBox("CLAHE (Mejora de Contraste)");
+    checkUseCLAHE = new QCheckBox("CLAHE (Mejora de Contraste Adaptativo)");
     controlLayout->addWidget(checkUseCLAHE);
     
     controlLayout->addSpacing(20);
@@ -1268,15 +1274,23 @@ void MainWindow::onApplyPreprocessing() {
             double sigmaColor = sliderBilateralSigmaColor->value();
             double sigmaSpace = sigmaColor; // Usar mismo valor para sigmaSpace
             
-            logMessage(textPreprocessingLog, QString("[4/5] Aplicando Filtro Bilateral (d=%1, sigmaColor=%2)...").arg(d).arg(sigmaColor));
+            logMessage(textPreprocessingLog, QString("[4/6] Aplicando Filtro Bilateral (d=%1, sigmaColor=%2)...").arg(d).arg(sigmaColor));
             working = Preprocessing::applyBilateralFilter(working, d, sigmaColor, sigmaSpace);
             logMessage(textPreprocessingLog, "   ✓ Filtro Bilateral aplicado");
             filtersApplied++;
         }
         
-        // === 5. CLAHE ===
+        // === 5. Ecualización de Histograma ===
+        if (checkUseHistogramEq->isChecked()) {
+            logMessage(textPreprocessingLog, "[5/6] Aplicando Ecualización de Histograma...");
+            working = Preprocessing::applyHistogramEqualization(working);
+            logMessage(textPreprocessingLog, "   ✓ Ecualización de Histograma aplicado");
+            filtersApplied++;
+        }
+        
+        // === 6. CLAHE ===
         if (checkUseCLAHE->isChecked()) {
-            logMessage(textPreprocessingLog, "[5/5] Aplicando CLAHE (Mejora de Contraste)...");
+            logMessage(textPreprocessingLog, "[6/6] Aplicando CLAHE (Mejora de Contraste Adaptativo)...");
             working = Preprocessing::applyCLAHE(working);
             logMessage(textPreprocessingLog, "   ✓ CLAHE aplicado");
             filtersApplied++;
@@ -1323,34 +1337,49 @@ void MainWindow::onSegmentLungs() {
     logMessage(textSegmentationLog, "[INICIO] Segmentando PULMONES...");
     
     try {
-        // IMPORTANTE: Los algoritmos de segmentación necesitan valores HU de la imagen 16-bit original
-        // El preprocesamiento (CLAHE, filtros) trabaja con 8-bit y NO preserva valores HU
-        // Por eso SIEMPRE usamos originalRaw para segmentar
-        cv::Mat inputImage = currentSlice.originalRaw;
-        cv::Mat displayImage = currentSlice.original8bit;
+        cv::Mat inputImage;
+        cv::Mat displayImage;
+        int minHU, maxHU;
         
         if (checkUsePreprocessed->isChecked() && !currentSlice.preprocessed.empty()) {
-            logMessage(textSegmentationLog, "[INFO] Mostrando imagen preprocesada (referencia visual únicamente)");
-            logMessage(textSegmentationLog, "[INFO] Segmentación usa ORIGINAL 16-bit para valores HU correctos");
+            // Usar imagen preprocesada (8-bit, 0-255)
+            inputImage = currentSlice.preprocessed;
             displayImage = currentSlice.preprocessed;
+            logMessage(textSegmentationLog, "[INFO] Usando imagen PREPROCESADA para segmentación");
+            
+            // Convertir umbrales HU a rangos 0-255
+            // Pulmones en HU: -1000 a -400 → En escala 0-255: aproximadamente 0-80
+            minHU = 0;
+            maxHU = 80;
+            
+            if (checkUseCustomHU->isChecked()) {
+                minHU = spinMinHU->value();
+                maxHU = spinMaxHU->value();
+                logMessage(textSegmentationLog, QString("[INFO] Usando rangos personalizados (0-255): %1 a %2").arg(minHU).arg(maxHU));
+            } else {
+                logMessage(textSegmentationLog, QString("[INFO] Usando rangos por defecto (0-255): %1 a %2").arg(minHU).arg(maxHU));
+            }
         } else {
-            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL para segmentación y visualización");
+            // Usar imagen original (16-bit con valores HU)
+            inputImage = currentSlice.originalRaw;
+            displayImage = currentSlice.original8bit;
+            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL (16-bit HU) para segmentación");
+            
+            // Valores HU reales
+            minHU = -1000;
+            maxHU = -400;
+            
+            if (checkUseCustomHU->isChecked()) {
+                minHU = spinMinHU->value();
+                maxHU = spinMaxHU->value();
+                logMessage(textSegmentationLog, QString("[INFO] Usando rangos personalizados (HU): %1 a %2").arg(minHU).arg(maxHU));
+            } else {
+                logMessage(textSegmentationLog, QString("[INFO] Usando rangos por defecto (HU): %1 a %2").arg(minHU).arg(maxHU));
+            }
         }
         
         // Actualizar imagen de entrada en la UI
         updateImageDisplay(labelSegmentationInput, displayImage);
-        
-        // Determinar rangos HU
-        int minHU = -1000;  // Valores por defecto para pulmones
-        int maxHU = -400;
-        
-        if (checkUseCustomHU->isChecked()) {
-            minHU = spinMinHU->value();
-            maxHU = spinMaxHU->value();
-            logMessage(textSegmentationLog, QString("[INFO] Usando rangos personalizados: %1 a %2 HU").arg(minHU).arg(maxHU));
-        } else {
-            logMessage(textSegmentationLog, QString("[INFO] Usando rangos por defecto: %1 a %2 HU").arg(minHU).arg(maxHU));
-        }
         
         // Llamar al algoritmo de segmentación
         logMessage(textSegmentationLog, "[1/3] Aplicando algoritmo de segmentación de pulmones...");
@@ -1410,32 +1439,48 @@ void MainWindow::onSegmentBones() {
     logMessage(textSegmentationLog, "[INICIO] Segmentando HUESOS...");
     
     try {
-        // IMPORTANTE: Segmentación de huesos requiere valores HU específicos (>200 HU)
-        // Siempre usar originalRaw que tiene los valores correctos
-        cv::Mat inputImage = currentSlice.originalRaw;
-        cv::Mat displayImage = currentSlice.original8bit;
+        cv::Mat inputImage;
+        cv::Mat displayImage;
+        int minHU, maxHU;
         
         if (checkUsePreprocessed->isChecked() && !currentSlice.preprocessed.empty()) {
-            logMessage(textSegmentationLog, "[INFO] Mostrando imagen preprocesada (referencia visual)");
-            logMessage(textSegmentationLog, "[INFO] Segmentación usa ORIGINAL 16-bit para umbrales HU");
+            // Usar imagen preprocesada (8-bit, 0-255)
+            inputImage = currentSlice.preprocessed;
             displayImage = currentSlice.preprocessed;
+            logMessage(textSegmentationLog, "[INFO] Usando imagen PREPROCESADA para segmentación");
+            
+            // Convertir umbrales HU a rangos 0-255
+            // Huesos en HU: 200 a 3000 → En escala 0-255: aproximadamente 180-255
+            minHU = 180;
+            maxHU = 255;
+            
+            if (checkUseCustomHU->isChecked()) {
+                minHU = spinMinHU->value();
+                maxHU = spinMaxHU->value();
+                logMessage(textSegmentationLog, QString("[INFO] Usando rangos personalizados (0-255): %1 a %2").arg(minHU).arg(maxHU));
+            } else {
+                logMessage(textSegmentationLog, QString("[INFO] Usando rangos por defecto (0-255): %1 a %2").arg(minHU).arg(maxHU));
+            }
         } else {
-            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL");
+            // Usar imagen original (16-bit con valores HU)
+            inputImage = currentSlice.originalRaw;
+            displayImage = currentSlice.original8bit;
+            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL (16-bit HU) para segmentación");
+            
+            // Valores HU reales
+            minHU = 200;
+            maxHU = 3000;
+            
+            if (checkUseCustomHU->isChecked()) {
+                minHU = spinMinHU->value();
+                maxHU = spinMaxHU->value();
+                logMessage(textSegmentationLog, QString("[INFO] Usando rangos personalizados (HU): %1 a %2").arg(minHU).arg(maxHU));
+            } else {
+                logMessage(textSegmentationLog, QString("[INFO] Usando rangos por defecto (HU): %1 a %2").arg(minHU).arg(maxHU));
+            }
         }
         
         updateImageDisplay(labelSegmentationInput, displayImage);
-        
-        // Determinar rangos HU
-        int minHU = 200;   // Valores por defecto para huesos
-        int maxHU = 3000;
-        
-        if (checkUseCustomHU->isChecked()) {
-            minHU = spinMinHU->value();
-            maxHU = spinMaxHU->value();
-            logMessage(textSegmentationLog, QString("[INFO] Usando rangos personalizados: %1 a %2 HU").arg(minHU).arg(maxHU));
-        } else {
-            logMessage(textSegmentationLog, QString("[INFO] Usando rangos por defecto: %1 a %2 HU").arg(minHU).arg(maxHU));
-        }
         
         logMessage(textSegmentationLog, "[1/3] Aplicando algoritmo de segmentación de huesos...");
         auto boneRegions = Segmentation::segmentBonesCustom(inputImage, minHU, maxHU);
@@ -1487,32 +1532,48 @@ void MainWindow::onSegmentAorta() {
     logMessage(textSegmentationLog, "[INICIO] Segmentando AORTA...");
     
     try {
-        // IMPORTANTE: Aorta requiere umbrales HU específicos (tejido blando)
-        // Usar siempre originalRaw para tener valores HU precisos
-        cv::Mat inputImage = currentSlice.originalRaw;
-        cv::Mat displayImage = currentSlice.original8bit;
+        cv::Mat inputImage;
+        cv::Mat displayImage;
+        int minHU, maxHU;
         
         if (checkUsePreprocessed->isChecked() && !currentSlice.preprocessed.empty()) {
-            logMessage(textSegmentationLog, "[INFO] Mostrando preprocesada (solo visualización)");
-            logMessage(textSegmentationLog, "[INFO] Segmentación usa ORIGINAL 16-bit");
+            // Usar imagen preprocesada (8-bit, 0-255)
+            inputImage = currentSlice.preprocessed;
             displayImage = currentSlice.preprocessed;
+            logMessage(textSegmentationLog, "[INFO] Usando imagen PREPROCESADA para segmentación");
+            
+            // Convertir umbrales HU a rangos 0-255
+            // Aorta en HU: 120 a 400 → En escala 0-255: aproximadamente 140-200
+            minHU = 140;
+            maxHU = 200;
+            
+            if (checkUseCustomHU->isChecked()) {
+                minHU = spinMinHU->value();
+                maxHU = spinMaxHU->value();
+                logMessage(textSegmentationLog, QString("[INFO] Usando rango personalizado (0-255): [%1, %2]").arg(minHU).arg(maxHU));
+            } else {
+                logMessage(textSegmentationLog, QString("[INFO] Usando rango por defecto (0-255): [%1, %2]").arg(minHU).arg(maxHU));
+            }
         } else {
-            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL");
+            // Usar imagen original (16-bit con valores HU)
+            inputImage = currentSlice.originalRaw;
+            displayImage = currentSlice.original8bit;
+            logMessage(textSegmentationLog, "[INFO] Usando imagen ORIGINAL (16-bit HU) para segmentación");
+            
+            // Valores HU reales
+            minHU = 120;
+            maxHU = 400;
+            
+            if (checkUseCustomHU->isChecked()) {
+                minHU = spinMinHU->value();
+                maxHU = spinMaxHU->value();
+                logMessage(textSegmentationLog, QString("[INFO] Usando rango HU PERSONALIZADO: [%1, %2]").arg(minHU).arg(maxHU));
+            } else {
+                logMessage(textSegmentationLog, QString("[INFO] Usando rango HU por defecto: [%1, %2]").arg(minHU).arg(maxHU));
+            }
         }
         
         updateImageDisplay(labelSegmentationInput, displayImage);
-        
-        // Rangos HU personalizables para aorta
-        int minHU = 120;
-        int maxHU = 400;
-        
-        if (checkUseCustomHU->isChecked()) {
-            minHU = spinMinHU->value();
-            maxHU = spinMaxHU->value();
-            logMessage(textSegmentationLog, QString("[INFO] Usando rango HU PERSONALIZADO: [%1, %2]").arg(minHU).arg(maxHU));
-        } else {
-            logMessage(textSegmentationLog, QString("[INFO] Usando rango HU por defecto: [%1, %2]").arg(minHU).arg(maxHU));
-        }
         
         logMessage(textSegmentationLog, "[1/3] Aplicando algoritmo de segmentación de aorta...");
         auto aortaRegions = Segmentation::segmentAortaCustom(inputImage, minHU, maxHU);

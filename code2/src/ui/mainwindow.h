@@ -115,6 +115,7 @@ private:
     QCheckBox* checkUseGaussian;
     QCheckBox* checkUseMedian;
     QCheckBox* checkUseBilateral;
+    QCheckBox* checkUseHistogramEq;
     QCheckBox* checkUseCLAHE;
     QSlider* sliderGaussianKernel;
     QLabel* labelGaussianKernelValue;
