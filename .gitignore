@@ -1,17 +1,167 @@
+# Archivos de compilación y build
 build/
+build-*/
+**/build/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+*.obj
+*.lib
 
-data/
+# Directorios de CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+_deps/
+*.cmake
 
-build_cpu/
-
-.vs/
-*.VC.db
-*.VC.db.backup
-*.suo
+# Archivos autogenerados de Qt
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*_autogen/
+*.qm
 *.user
-*.sln.docstates
+*.pro.user
+*.pro.user.*
 
+# Datasets y datos médicos
+data/
+dataset/
+datasets/
+**/dataset/
+**/datasets/
+*.dcm
+*.IMA
+*.dicom
+*.nii
+*.nii.gz
+*.mhd
+*.raw
+*.nrrd
+
+# Imágenes exportadas y resultados
+exported_slices/
+exported_images/
+results/
+output/
+**/exported_slices/
+**/exported_images/
+**/results/
+**/output/
+
+# Modelos de deep learning grandes
+*.onnx
+*.pth
+*.pt
+*.h5
+*.pb
+*.tflite
+*.weights
+models/large/
+checkpoints/
+
+# Entornos virtuales de Python
+venv/
+env/
+ENV/
 .venv/
+.env/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+*.egg
 
-# Archivos generados por Windows
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 Thumbs.db
+*.sublime-*
+.project
+.cproject
+.settings/
+*.code-workspace
+
+# Archivos de logs y temporales
+*.log
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+logs/
+log/
+temp/
+tmp/
+
+# Archivos del sistema operativo
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Archivos de configuración local
+config.local
+*.local
+.env.local
+
+# Archivos de caché
+.cache/
+*.cache
+
+# Archivos de documentación generados
+docs/_build/
+docs/.doctrees/
+site/
+
+# Archivos de pruebas
+test_output/
+test_results/
+*.test
+
+# Archivos de backups de bases de datos
+*.sql
+*.sqlite
+*.db
+
+# Archivos comprimidos (excepto si son parte del proyecto)
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.gz
+*.bz2
+
+# Archivos grandes de Ground Truth
+**/ground_truth/
+**/gt/
+gt_*.png
+ground_truth_*.png
+
+# Excepción: Permitir modelos pequeños necesarios
+!src/models/dncnn_grayscale.onnx
+!**/models/*.onnx
