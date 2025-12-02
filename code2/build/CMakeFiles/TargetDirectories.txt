@@ -1,0 +1,5 @@
+/home/felipep/Documentos/universidad/universidad 7mo/vision por computador/Interciclo-Vision-por-Computador/code2/build/CMakeFiles/MedicalApp.dir
+/home/felipep/Documentos/universidad/universidad 7mo/vision por computador/Interciclo-Vision-por-Computador/code2/build/CMakeFiles/edit_cache.dir
+/home/felipep/Documentos/universidad/universidad 7mo/vision por computador/Interciclo-Vision-por-Computador/code2/build/CMakeFiles/rebuild_cache.dir
+/home/felipep/Documentos/universidad/universidad 7mo/vision por computador/Interciclo-Vision-por-Computador/code2/build/CMakeFiles/MedicalApp_autogen_timestamp_deps.dir
+/home/felipep/Documentos/universidad/universidad 7mo/vision por computador/Interciclo-Vision-por-Computador/code2/build/CMakeFiles/MedicalApp_autogen.dir

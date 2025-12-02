@@ -94,6 +94,8 @@ private slots:
     
     // Pestaña de Métricas
     void onCalculateMetrics();
+    void onLoadGroundTruthClicked();
+    void onExportImages();
 
 private:
     // === WIDGETS PRINCIPALES ===
@@ -174,6 +176,7 @@ private:
     // Pestaña de Métricas
     QWidget* tabMetrics;
     QPushButton* btnCalculateMetrics;
+    QPushButton* btnLoadGroundTruth;
     QTableWidget* tableMetrics;
     QLabel* labelHistogram;
     QLabel* labelPerformanceInfo;

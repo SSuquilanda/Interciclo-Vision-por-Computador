@@ -258,6 +258,39 @@ std::vector<SegmentedRegion> segmentBonesCustom(const cv::Mat& image, int minHU,
     // Umbralización con rangos personalizados
     cv::Mat mask = thresholdByRange(image, minHU, maxHU);
 
+    // Procesamiento morfológico especial para el esternón
+    // Primero obtener componentes para identificar candidatos a esternón
+    auto prelimComponents = findConnectedComponents(mask, 50);
+    
+    // Identificar fragmentos del esternón (región anterior-superior-central)
+    std::vector<cv::Mat> sternumFragments;
+    cv::Mat sternumMask = cv::Mat::zeros(mask.size(), CV_8U);
+    
+    for (const auto& comp : prelimComponents) {
+        double distX = std::abs(comp.centroid.x - imgCenter.x);
+        double distY = comp.centroid.y - imgCenter.y;
+        
+        // Criterios para esternón: anterior (distY < -50), central (distX < 70), pequeño/mediano (área < 800)
+        if (distX < 70.0 && distY < -50.0 && comp.area < 800) {
+            cv::bitwise_or(sternumMask, comp.mask, sternumMask);
+        }
+    }
+    
+    // Aplicar cierre SOLO si hay fragmentos de esternón detectados
+    if (cv::countNonZero(sternumMask) > 0) {
+        cv::Mat kernelClose = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(11, 11));
+        cv::morphologyEx(sternumMask, sternumMask, cv::MORPH_CLOSE, kernelClose);
+        
+        // Reemplazar región del esternón en la máscara original
+        // Limpiar región anterior-superior en máscara original
+        cv::Rect cleanROI(imgCenter.x - 80, 0, 160, imgCenter.y - 40);
+        cleanROI = cleanROI & cv::Rect(0, 0, mask.cols, mask.rows);
+        mask(cleanROI).setTo(0);
+        
+        // Agregar esternón procesado
+        cv::bitwise_or(mask, sternumMask, mask);
+    }
+
     // Componentes Conectados
     auto components = findConnectedComponents(mask, 80);
 
@@ -266,7 +299,13 @@ std::vector<SegmentedRegion> segmentBonesCustom(const cv::Mat& image, int minHU,
         // Morfología local para limpiar hueso
         cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
         cv::morphologyEx(region.mask, region.mask, cv::MORPH_OPEN, kernel);
-        cv::morphologyEx(region.mask, region.mask, cv::MORPH_CLOSE, kernel);
+        
+        // No aplicar cierre adicional al esternón ya que fue procesado antes
+        bool esSternon = (std::abs(region.centroid.x - imgCenter.x) < 60.0 && 
+                          region.centroid.y < imgCenter.y - 50.0);
+        if (!esSternon) {
+            cv::morphologyEx(region.mask, region.mask, cv::MORPH_CLOSE, kernel);
+        }
 
         // Recalcular área real tras limpieza
         region.area = cv::countNonZero(region.mask);
@@ -277,15 +316,24 @@ std::vector<SegmentedRegion> segmentBonesCustom(const cv::Mat& image, int minHU,
         double distY = region.centroid.y - imgCenter.y; // + abajo, - arriba
         double distTotal = cv::norm(region.centroid - imgCenter);
 
+        // FILTRO MEJORADO: Eliminar ruido pequeño cerca de la columna
+        // Ruido típico: fragmentos pequeños (<200px) muy cerca del centro (<50px) y cerca de la columna verticalmente
         if (distX < 50 && distTotal < 80 && region.area < 500) {
-            continue;
+            continue; // Eliminar artefactos centrales pequeños
+        }
+        
+        // NUEVO: Eliminar fragmentos pequeños alrededor de la región de la columna
+        // Si está muy cerca del centro horizontal (<60px), abajo del centro (distY > -50), 
+        // y es pequeño (<250px), probablemente es ruido de la columna
+        if (distX < 60 && distY > -50 && distY < 100 && region.area < 250) {
+            continue; // Eliminar ruido alrededor de la columna vertebral
         }
 
         // Clasificación por posición y geometría
         if (distX < 50.0 && region.area > 300) {
             region.label = "Columna";
             region.color = cv::Scalar(0, 255, 255); // Amarillo
-        } else if (distX < 60.0 && distY < -80.0 && region.area < 300) {
+        } else if (distX < 80.0 && distY < -50.0) {  // Relajar criterios para esternón cerrado
             region.label = "Esternon";
             region.color = cv::Scalar(0, 165, 255); // Naranja
         } else {

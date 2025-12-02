@@ -5,6 +5,10 @@
 #include <QHeaderView>
 #include <QGroupBox>
 #include <QElapsedTimer>
+#include <QDir>
+#include <QFileDialog>
+#include <QCoreApplication>
+#include <QStatusBar>
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
@@ -433,13 +437,13 @@ void MainWindow::setupTabPreprocessing() {
     controlLayout->addSpacing(10);
     
     // === Checkbox: CLAHE ===
-    checkUseCLAHE = new QCheckBox("CLAHE (Mejora de Contraste Adaptativo)");
+    checkUseCLAHE = new QCheckBox("CLAHE");
     controlLayout->addWidget(checkUseCLAHE);
     
     controlLayout->addSpacing(20);
     
     // === Botón Aplicar ===
-    btnApplyPreprocessing = new QPushButton("🔄 Aplicar Preprocesamiento");
+    btnApplyPreprocessing = new QPushButton("Aplicar Preprocesamiento");
     btnApplyPreprocessing->setMinimumHeight(40);
     btnApplyPreprocessing->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
     connect(btnApplyPreprocessing, &QPushButton::clicked, this, &MainWindow::onApplyPreprocessing);
@@ -777,11 +781,6 @@ void MainWindow::setupTabMorphology() {
     titleLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
     controlLayout->addWidget(titleLabel);
     
-    QLabel* descLabel = new QLabel("Refina las máscaras de segmentación");
-    descLabel->setStyleSheet("color: #888; font-size: 11px;");
-    descLabel->setWordWrap(true);
-    controlLayout->addWidget(descLabel);
-    
     controlLayout->addSpacing(15);
     
     // === ComboBox: Operación Morfológica ===
@@ -792,9 +791,12 @@ void MainWindow::setupTabMorphology() {
     comboMorphologyOperation = new QComboBox();
     comboMorphologyOperation->addItem("Erosión", "erosion");
     comboMorphologyOperation->addItem("Dilatación", "dilation");
-    comboMorphologyOperation->addItem("Apertura (Opening)", "opening");
-    comboMorphologyOperation->addItem("Cierre (Closing)", "closing");
-    comboMorphologyOperation->setCurrentIndex(2); // Opening por defecto
+    comboMorphologyOperation->addItem("Apertura", "opening");
+    comboMorphologyOperation->addItem("Cierre", "closing");
+    comboMorphologyOperation->addItem("Gradiente", "gradient");
+    comboMorphologyOperation->addItem("Top Hat", "tophat");
+    comboMorphologyOperation->addItem("Black Hat", "blackhat");
+    comboMorphologyOperation->setCurrentIndex(2);
     controlLayout->addWidget(comboMorphologyOperation);
     
     controlLayout->addSpacing(15);
@@ -903,18 +905,6 @@ void MainWindow::setupTabMorphology() {
         }
     });
     controlLayout->addWidget(btnFillHoles);
-    
-    controlLayout->addSpacing(15);
-    
-    // === Información ===
-    QGroupBox* infoGroup = new QGroupBox("Información");
-    QVBoxLayout* infoLayout = new QVBoxLayout(infoGroup);
-    infoLayout->addWidget(new QLabel("<b>Erosión:</b> Reduce regiones blancas"));
-    infoLayout->addWidget(new QLabel("<b>Dilatación:</b> Expande regiones blancas"));
-    infoLayout->addWidget(new QLabel("<b>Apertura:</b> Erosión + Dilatación (elimina ruido)"));
-    infoLayout->addWidget(new QLabel("<b>Cierre:</b> Dilatación + Erosión (rellena huecos pequeños)"));
-    infoGroup->setStyleSheet("QGroupBox { color: #888; font-size: 10px; }");
-    controlLayout->addWidget(infoGroup);
     
     controlLayout->addSpacing(10);
     
@@ -1133,8 +1123,40 @@ void MainWindow::setupTabMetrics() {
     );
     connect(btnCalculateMetrics, &QPushButton::clicked, this, &MainWindow::onCalculateMetrics);
     
+    btnLoadGroundTruth = new QPushButton("📋 Cargar Validación (Ground Truth)");
+    btnLoadGroundTruth->setMinimumHeight(40);
+    btnLoadGroundTruth->setStyleSheet(
+        "QPushButton { "
+        "   background-color: #4CAF50; "
+        "   color: white; "
+        "   font-weight: bold; "
+        "   font-size: 13px; "
+        "   border-radius: 5px; "
+        "   padding: 0 20px; "
+        "}"
+        "QPushButton:hover { background-color: #388E3C; }"
+    );
+    connect(btnLoadGroundTruth, &QPushButton::clicked, this, &MainWindow::onLoadGroundTruthClicked);
+    
+    QPushButton* btnExportImages = new QPushButton("💾 Exportar Imágenes");
+    btnExportImages->setMinimumHeight(40);
+    btnExportImages->setStyleSheet(
+        "QPushButton { "
+        "   background-color: #FF9800; "
+        "   color: white; "
+        "   font-weight: bold; "
+        "   font-size: 13px; "
+        "   border-radius: 5px; "
+        "   padding: 0 20px; "
+        "}"
+        "QPushButton:hover { background-color: #F57C00; }"
+    );
+    connect(btnExportImages, &QPushButton::clicked, this, &MainWindow::onExportImages);
+    
     headerLayout->addWidget(titleLabel);
     headerLayout->addStretch();
+    headerLayout->addWidget(btnExportImages);
+    headerLayout->addWidget(btnLoadGroundTruth);
     headerLayout->addWidget(btnCalculateMetrics);
     mainLayout->addWidget(headerPanel);
     
@@ -1143,13 +1165,14 @@ void MainWindow::setupTabMetrics() {
     QVBoxLayout* tableLayout = new QVBoxLayout(tableGroup);
     
     tableMetrics = new QTableWidget();
-    tableMetrics->setColumnCount(5);
+    tableMetrics->setColumnCount(6);
     tableMetrics->setHorizontalHeaderLabels({
         "Estructura", 
         "Área (px)", 
         "Densidad Media (HU)", 
         "SNR (dB)", 
-        "PSNR vs Original (dB)"
+        "PSNR vs Original (dB)",
+        "Precisión (IoU %)"
     });
     tableMetrics->setMinimumHeight(200);
     tableMetrics->setMaximumHeight(300);
@@ -1235,9 +1258,11 @@ void MainWindow::onApplyPreprocessing() {
     int filtersApplied = 0;
     
     try {
+        // === FASE 1: REDUCCIÓN DE RUIDO ===
+        
         // === 1. Red Neuronal DnCNN ===
         if (checkUseDnCNN->isChecked() && dncnnModelLoaded) {
-            logMessage(textPreprocessingLog, "[1/4] Aplicando Red Neuronal DnCNN...");
+            logMessage(textPreprocessingLog, "[1/6] Aplicando Red Neuronal DnCNN...");
             working = dncnnDenoiser.denoise(working);
             logMessage(textPreprocessingLog, "   ✓ DnCNN aplicado exitosamente");
             filtersApplied++;
@@ -1250,7 +1275,7 @@ void MainWindow::onApplyPreprocessing() {
             int kernel = sliderGaussianKernel->value();
             if (kernel % 2 == 0) kernel++; // Asegurar impar
             
-            logMessage(textPreprocessingLog, QString("[2/4] Aplicando Filtro Gaussiano (kernel=%1)...").arg(kernel));
+            logMessage(textPreprocessingLog, QString("[2/6] Aplicando Filtro Gaussiano (kernel=%1)...").arg(kernel));
             working = Preprocessing::applyGaussianFilter(working, kernel);
             logMessage(textPreprocessingLog, "   ✓ Filtro Gaussiano aplicado");
             filtersApplied++;
@@ -1261,7 +1286,7 @@ void MainWindow::onApplyPreprocessing() {
             int kernel = sliderMedianKernel->value();
             if (kernel % 2 == 0) kernel++;
             
-            logMessage(textPreprocessingLog, QString("[3/5] Aplicando Filtro Mediana (kernel=%1)...").arg(kernel));
+            logMessage(textPreprocessingLog, QString("[3/6] Aplicando Filtro Mediana (kernel=%1)...").arg(kernel));
             working = Preprocessing::applyMedianFilter(working, kernel);
             logMessage(textPreprocessingLog, "   ✓ Filtro Mediana aplicado");
             filtersApplied++;
@@ -1274,17 +1299,19 @@ void MainWindow::onApplyPreprocessing() {
             double sigmaColor = sliderBilateralSigmaColor->value();
             double sigmaSpace = sigmaColor; // Usar mismo valor para sigmaSpace
             
-            logMessage(textPreprocessingLog, QString("[4/6] Aplicando Filtro Bilateral (d=%1, sigmaColor=%2)...").arg(d).arg(sigmaColor));
+            logMessage(textPreprocessingLog, QString("[4/6] Aplicando Filtro Bilateral (d=%1, sigmaColor=%2)...").arg(d).arg(sigmaSpace));
             working = Preprocessing::applyBilateralFilter(working, d, sigmaColor, sigmaSpace);
             logMessage(textPreprocessingLog, "   ✓ Filtro Bilateral aplicado");
             filtersApplied++;
         }
         
+        // === FASE 2: MEJORA DE CONTRASTE (después de reducir ruido) ===
+        
         // === 5. Ecualización de Histograma ===
         if (checkUseHistogramEq->isChecked()) {
             logMessage(textPreprocessingLog, "[5/6] Aplicando Ecualización de Histograma...");
             working = Preprocessing::applyHistogramEqualization(working);
-            logMessage(textPreprocessingLog, "   ✓ Ecualización de Histograma aplicado");
+            logMessage(textPreprocessingLog, "   ✓ Ecualización de Histograma aplicada");
             filtersApplied++;
         }
         
@@ -1679,20 +1706,30 @@ void MainWindow::onApplyMorphology() {
             result = Morphology::dilate(inputMask, kernelSizeCv, iterations);
             
         } else if (operation == "opening") {
-            logMessage(textMorphologyLog, "[2/2] Aplicando Apertura (Opening)...");
+            logMessage(textMorphologyLog, "[2/2] Aplicando Apertura...");
             result = inputMask.clone();
-            // Opening no tiene parámetro de iteraciones, aplicar manualmente si es necesario
             for (int i = 0; i < iterations; i++) {
                 result = Morphology::opening(result, kernelSizeCv);
             }
             
         } else if (operation == "closing") {
-            logMessage(textMorphologyLog, "[2/2] Aplicando Cierre (Closing)...");
+            logMessage(textMorphologyLog, "[2/2] Aplicando Cierre...");
             result = inputMask.clone();
-            // Closing no tiene parámetro de iteraciones, aplicar manualmente si es necesario
             for (int i = 0; i < iterations; i++) {
                 result = Morphology::closing(result, kernelSizeCv);
             }
+            
+        } else if (operation == "gradient") {
+            logMessage(textMorphologyLog, "[2/2] Aplicando Gradiente Morfológico...");
+            result = Morphology::gradient(inputMask, kernelSizeCv);
+            
+        } else if (operation == "tophat") {
+            logMessage(textMorphologyLog, "[2/2] Aplicando Top Hat...");
+            result = Morphology::topHat(inputMask, kernelSizeCv);
+            
+        } else if (operation == "blackhat") {
+            logMessage(textMorphologyLog, "[2/2] Aplicando Black Hat...");
+            result = Morphology::blackHat(inputMask, kernelSizeCv);
             
         } else {
             throw std::runtime_error("Operación desconocida");
@@ -1844,8 +1881,19 @@ void MainWindow::onCalculateMetrics() {
             double densityHU = 0.0;
             if (!currentSlice.originalRaw.empty() && !region.mask.empty()) {
                 cv::Scalar meanVal = cv::mean(currentSlice.originalRaw, region.mask);
-                // Convertir a HU: HU = valor_raw - 1024 (aproximado para CT)
-                densityHU = meanVal[0] - 1024.0;
+                double rawValue = meanVal[0];
+                
+                // Detectar el rango de valores para calcular HU correctamente
+                double minVal, maxVal;
+                cv::minMaxLoc(currentSlice.originalRaw, &minVal, &maxVal);
+                
+                // Si el rango sugiere valores sin signo (típicamente 0-4095 para 12-bit CT)
+                if (minVal >= 0 && maxVal > 1024) {
+                    densityHU = rawValue - 1024.0;  // Offset típico para CT
+                } else {
+                    // Si los valores ya están en rango HU (pueden ser negativos)
+                    densityHU = rawValue;
+                }
             }
             tableMetrics->setItem(row, 2, new QTableWidgetItem(QString::number(densityHU, 'f', 1)));
             
@@ -1873,6 +1921,9 @@ void MainWindow::onCalculateMetrics() {
                 }
             }
             tableMetrics->setItem(row, 4, new QTableWidgetItem(psnrText));
+            
+            // Columna 5: Precisión IoU (inicialmente N/A, se actualiza al cargar Ground Truth)
+            tableMetrics->setItem(row, 5, new QTableWidgetItem("N/A"));
         }
     } else {
         // Si no hay regiones, mostrar métricas de imagen completa
@@ -1886,7 +1937,18 @@ void MainWindow::onCalculateMetrics() {
         
         // Densidad media de toda la imagen
         cv::Scalar meanVal = cv::mean(currentSlice.originalRaw);
-        double densityHU = meanVal[0] - 1024.0;
+        double rawValue = meanVal[0];
+        
+        // Detectar el rango de valores para calcular HU correctamente
+        double minVal, maxVal;
+        cv::minMaxLoc(currentSlice.originalRaw, &minVal, &maxVal);
+        
+        double densityHU;
+        if (minVal >= 0 && maxVal > 1024) {
+            densityHU = rawValue - 1024.0;  // Offset típico para CT
+        } else {
+            densityHU = rawValue;  // Ya en rango HU
+        }
         tableMetrics->setItem(row, 2, new QTableWidgetItem(QString::number(densityHU, 'f', 1)));
         
         // SNR de imagen completa
@@ -1900,6 +1962,9 @@ void MainWindow::onCalculateMetrics() {
             psnrText = QString::number(psnr, 'f', 2);
         }
         tableMetrics->setItem(row, 4, new QTableWidgetItem(psnrText));
+        
+        // Columna 5: Precisión IoU (inicialmente N/A)
+        tableMetrics->setItem(row, 5, new QTableWidgetItem("N/A"));
     }
     
     // === 3. GENERAR HISTOGRAMA DE ROI ===
@@ -1981,6 +2046,332 @@ void MainWindow::onCalculateMetrics() {
     
     // Auto-ajustar columnas
     tableMetrics->resizeColumnsToContents();
+}
+
+void MainWindow::onLoadGroundTruthClicked() {
+    // Validar que hay una máscara de segmentación
+    cv::Mat autoMask;
+    
+    // Prioridad: morphologyMask > mask
+    if (!currentSlice.morphologyMask.empty()) {
+        autoMask = currentSlice.morphologyMask;
+    } else if (!currentSlice.mask.empty()) {
+        autoMask = currentSlice.mask;
+    } else {
+        QMessageBox::warning(this, "Sin máscara", 
+            "Primero realiza una segmentación en la pestaña de Segmentación o Morfología.");
+        return;
+    }
+    
+    // Configurar directorio inicial (ajustar ruta relativa desde el ejecutable)
+    QString initialDir = QDir(QCoreApplication::applicationDirPath() + "/../src/core/img").absolutePath();
+    
+    // Abrir diálogo para seleccionar imagen de Ground Truth
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        "Seleccionar Ground Truth (Máscara Manual)",
+        initialDir,
+        "Imágenes (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;Todos los archivos (*.*)"
+    );
+    
+    if (fileName.isEmpty()) {
+        return; // Usuario canceló
+    }
+    
+    // Cargar imagen como escala de grises
+    cv::Mat manualMask = cv::imread(fileName.toStdString(), cv::IMREAD_GRAYSCALE);
+    
+    if (manualMask.empty()) {
+        QMessageBox::critical(this, "Error", 
+            QString("No se pudo cargar la imagen:\n%1").arg(fileName));
+        return;
+    }
+    
+    // Validar dimensiones
+    if (manualMask.size() != autoMask.size()) {
+        QMessageBox::critical(this, "Dimensiones incompatibles", 
+            QString("La imagen Ground Truth tiene dimensiones %1x%2\n"
+                    "pero la máscara automática tiene %3x%4.\n\n"
+                    "Deben tener el mismo tamaño.")
+                .arg(manualMask.cols).arg(manualMask.rows)
+                .arg(autoMask.cols).arg(autoMask.rows));
+        return;
+    }
+    
+    // Binarizar ambas máscaras (asegurar que sean 0 o 255)
+    cv::threshold(autoMask, autoMask, 127, 255, cv::THRESH_BINARY);
+    cv::threshold(manualMask, manualMask, 127, 255, cv::THRESH_BINARY);
+    
+    // Calcular IoU (Intersection over Union)
+    cv::Mat intersection, unionMask;
+    cv::bitwise_and(autoMask, manualMask, intersection);
+    cv::bitwise_or(autoMask, manualMask, unionMask);
+    
+    int intersectionPixels = cv::countNonZero(intersection);
+    int unionPixels = cv::countNonZero(unionMask);
+    
+    double iou = (unionPixels > 0) ? 
+                 (double)intersectionPixels / (double)unionPixels * 100.0 : 0.0;
+    
+    // === VISUALIZACIÓN DE COMPARACIÓN ===
+    // Crear imagen de comparación lado a lado con diferencias
+    cv::Mat comparison;
+    int width = autoMask.cols;
+    int height = autoMask.rows;
+    
+    // Crear imagen RGB para visualización con colores
+    cv::Mat visual = cv::Mat::zeros(height, width * 3 + 40, CV_8UC3);
+    
+    // 1. Máscara Automática (Izquierda - AZUL)
+    cv::Mat autoColor;
+    cv::cvtColor(autoMask, autoColor, cv::COLOR_GRAY2BGR);
+    autoColor.setTo(cv::Scalar(255, 100, 0), autoMask); // Azul para automática
+    autoColor.copyTo(visual(cv::Rect(0, 0, width, height)));
+    cv::putText(visual, "AUTOMATICA", cv::Point(10, 30), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 0), 2);
+    cv::putText(visual, QString::number(cv::countNonZero(autoMask)).toStdString() + " px", 
+                cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 1);
+    
+    // 2. Ground Truth (Centro - VERDE)
+    cv::Mat manualColor;
+    cv::cvtColor(manualMask, manualColor, cv::COLOR_GRAY2BGR);
+    manualColor.setTo(cv::Scalar(0, 255, 0), manualMask); // Verde para manual
+    manualColor.copyTo(visual(cv::Rect(width + 20, 0, width, height)));
+    cv::putText(visual, "GROUND TRUTH", cv::Point(width + 30, 30), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
+    cv::putText(visual, QString::number(cv::countNonZero(manualMask)).toStdString() + " px", 
+                cv::Point(width + 30, 60), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 1);
+    
+    // 3. Diferencias (Derecha - ROJO=solo auto, AMARILLO=solo manual, BLANCO=intersección)
+    cv::Mat diff = cv::Mat::zeros(height, width, CV_8UC3);
+    
+    // Intersección (ambas coinciden) = BLANCO
+    diff.setTo(cv::Scalar(255, 255, 255), intersection);
+    
+    // Solo en automática (no en manual) = ROJO
+    cv::Mat onlyAuto;
+    cv::subtract(autoMask, manualMask, onlyAuto);
+    diff.setTo(cv::Scalar(0, 0, 255), onlyAuto);
+    
+    // Solo en manual (no en automática) = AMARILLO
+    cv::Mat onlyManual;
+    cv::subtract(manualMask, autoMask, onlyManual);
+    diff.setTo(cv::Scalar(0, 255, 255), onlyManual);
+    
+    diff.copyTo(visual(cv::Rect(width * 2 + 40, 0, width, height)));
+    cv::putText(visual, "DIFERENCIAS", cv::Point(width * 2 + 50, 30), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 0, 255), 2);
+    cv::putText(visual, "Blanco=OK", cv::Point(width * 2 + 50, 60), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
+    cv::putText(visual, "Rojo=Extra", cv::Point(width * 2 + 50, 80), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
+    cv::putText(visual, "Amarillo=Falta", cv::Point(width * 2 + 50, 100), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
+    
+    // Añadir estadísticas en la parte inferior
+    cv::putText(visual, QString("IoU: %1%").arg(iou, 0, 'f', 2).toStdString(), 
+                cv::Point(width + 30, height - 60), 
+                cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 255, 0), 2);
+    cv::putText(visual, QString("Interseccion: %1 px").arg(intersectionPixels).toStdString(), 
+                cv::Point(width + 30, height - 30), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 1);
+    cv::putText(visual, QString("Union: %1 px").arg(unionPixels).toStdString(), 
+                cv::Point(width + 30, height - 10), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 1);
+    
+    // Mostrar en una nueva ventana
+    cv::namedWindow("Comparacion Ground Truth vs Automatica", cv::WINDOW_NORMAL);
+    cv::imshow("Comparacion Ground Truth vs Automatica", visual);
+    cv::resizeWindow("Comparacion Ground Truth vs Automatica", 1400, 600);
+    
+    // Actualizar tabla de métricas con el valor de IoU
+    bool columnExists = false;
+    for (int col = 0; col < tableMetrics->columnCount(); ++col) {
+        QString header = tableMetrics->horizontalHeaderItem(col)->text();
+        if (header.contains("IoU") || header.contains("Precisión")) {
+            columnExists = true;
+            break;
+        }
+    }
+    
+    // Agregar valor de IoU a todas las filas existentes
+    QString iouText = QString::number(iou, 'f', 2) + " %";
+    
+    if (tableMetrics->rowCount() == 0) {
+        // Si no hay filas, crear una para mostrar el resultado
+        onCalculateMetrics(); // Calcular métricas primero
+    }
+    
+    // Actualizar columna de IoU (columna 5)
+    for (int row = 0; row < tableMetrics->rowCount(); ++row) {
+        tableMetrics->setItem(row, 5, new QTableWidgetItem(iouText));
+    }
+    
+    // Mostrar mensaje en barra de estado
+    statusBar()->showMessage(QString("✓ Validación completada: IoU = %1").arg(iouText), 5000);
+    
+    // Mensaje de confirmación
+    QMessageBox::information(this, "Validación Completada", 
+        QString("Precisión de segmentación calculada:\n\n"
+                "IoU (Intersection over Union): %1\n\n"
+                "Píxeles de intersección: %2\n"
+                "Píxeles de unión: %3")
+            .arg(iouText)
+            .arg(intersectionPixels)
+            .arg(unionPixels));
+    
+    // Auto-ajustar columnas
+    tableMetrics->resizeColumnsToContents();
+}
+
+void MainWindow::onExportImages() {
+    if (!currentSlice.hasData()) {
+        QMessageBox::warning(this, "Sin datos", "No hay imágenes para exportar. Carga un dataset primero.");
+        return;
+    }
+    
+    // Seleccionar directorio de destino
+    QString dirPath = QFileDialog::getExistingDirectory(
+        this, 
+        "Seleccionar carpeta para exportar imágenes",
+        QDir::homePath(),
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks
+    );
+    
+    if (dirPath.isEmpty()) {
+        return; // Usuario canceló
+    }
+    
+    QDir exportDir(dirPath);
+    QString baseName = QString("slice_%1").arg(currentSlice.sliceIndex, 4, 10, QChar('0'));
+    
+    int exportedCount = 0;
+    QStringList exportedFiles;
+    
+    try {
+        // 1. Exportar imagen original
+        if (!currentSlice.original8bit.empty()) {
+            QString filename = exportDir.filePath(baseName + "_01_original.png");
+            if (cv::imwrite(filename.toStdString(), currentSlice.original8bit)) {
+                exportedFiles << "✓ Original";
+                exportedCount++;
+            }
+        }
+        
+        // 2. Exportar imagen preprocesada (si existe)
+        if (!currentSlice.preprocessed.empty()) {
+            QString filename = exportDir.filePath(baseName + "_02_preprocessed.png");
+            if (cv::imwrite(filename.toStdString(), currentSlice.preprocessed)) {
+                exportedFiles << "✓ Preprocesada";
+                exportedCount++;
+            }
+        }
+        
+        // 3. Exportar máscara de segmentación (si existe)
+        if (!currentSlice.mask.empty()) {
+            QString filename = exportDir.filePath(baseName + "_03_segmentation_mask.png");
+            if (cv::imwrite(filename.toStdString(), currentSlice.mask)) {
+                exportedFiles << "✓ Máscara de Segmentación";
+                exportedCount++;
+            }
+            
+            // También exportar la segmentación coloreada sobre la imagen original
+            if (!currentSegmentedRegions.empty()) {
+                cv::Mat visualization;
+                if (currentSlice.original8bit.channels() == 1) {
+                    cv::cvtColor(currentSlice.original8bit, visualization, cv::COLOR_GRAY2BGR);
+                } else {
+                    visualization = currentSlice.original8bit.clone();
+                }
+                
+                // Superponer cada región segmentada
+                for (const auto& region : currentSegmentedRegions) {
+                    if (!region.mask.empty()) {
+                        cv::Mat colorMask = cv::Mat::zeros(region.mask.size(), CV_8UC3);
+                        colorMask.setTo(region.color, region.mask);
+                        cv::addWeighted(visualization, 0.7, colorMask, 0.3, 0, visualization);
+                    }
+                }
+                
+                QString filenameVis = exportDir.filePath(baseName + "_04_segmentation_overlay.png");
+                if (cv::imwrite(filenameVis.toStdString(), visualization)) {
+                    exportedFiles << "✓ Segmentación Visualizada";
+                    exportedCount++;
+                }
+            }
+        }
+        
+        // 4. Exportar máscara morfológica (si existe)
+        if (!currentSlice.morphologyMask.empty()) {
+            QString filename = exportDir.filePath(baseName + "_05_morphology_mask.png");
+            if (cv::imwrite(filename.toStdString(), currentSlice.morphologyMask)) {
+                exportedFiles << "✓ Máscara Morfológica";
+                exportedCount++;
+            }
+        }
+        
+        // 5. Exportar visualización final (overlay completo)
+        if (!currentSegmentedRegions.empty()) {
+            // Crear visualización completa con overlays
+            cv::Mat finalVisualization;
+            if (currentSlice.original8bit.channels() == 1) {
+                cv::cvtColor(currentSlice.original8bit, finalVisualization, cv::COLOR_GRAY2BGR);
+            } else {
+                finalVisualization = currentSlice.original8bit.clone();
+            }
+            
+            // Usar morphologyMask si existe, si no usar mask
+            cv::Mat maskToUse = currentSlice.morphologyMask.empty() ? 
+                               currentSlice.mask : currentSlice.morphologyMask;
+            
+            if (!maskToUse.empty()) {
+                for (const auto& region : currentSegmentedRegions) {
+                    if (!region.mask.empty()) {
+                        cv::Mat colorMask = cv::Mat::zeros(region.mask.size(), CV_8UC3);
+                        colorMask.setTo(region.color, region.mask);
+                        cv::addWeighted(finalVisualization, 0.7, colorMask, 0.3, 0, finalVisualization);
+                    }
+                }
+                
+                QString filenameVis = exportDir.filePath(baseName + "_06_final_visualization.png");
+                if (cv::imwrite(filenameVis.toStdString(), finalVisualization)) {
+                    exportedFiles << "✓ Visualización Final";
+                    exportedCount++;
+                }
+            }
+        }
+        
+        // 6. Exportar histogramas si existen
+        if (!labelHistogram->pixmap().isNull()) {
+            QString filename = exportDir.filePath(baseName + "_07_histogram.png");
+            if (labelHistogram->pixmap().save(filename)) {
+                exportedFiles << "✓ Histograma";
+                exportedCount++;
+            }
+        }
+        
+        // Mensaje de confirmación
+        if (exportedCount > 0) {
+            QString message = QString("✓ Exportación completada exitosamente\n\n"
+                                    "Carpeta de destino:\n%1\n\n"
+                                    "Imágenes exportadas (%2):\n%3")
+                .arg(dirPath)
+                .arg(exportedCount)
+                .arg(exportedFiles.join("\n"));
+            
+            QMessageBox::information(this, "Exportación Exitosa", message);
+            statusBar()->showMessage(QString("✓ %1 imágenes exportadas a %2")
+                .arg(exportedCount).arg(dirPath), 5000);
+        } else {
+            QMessageBox::warning(this, "Sin imágenes", 
+                "No hay imágenes procesadas para exportar.\n\n"
+                "Realiza preprocesamiento, segmentación o morfología primero.");
+        }
+        
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, "Error de Exportación", 
+            QString("Error al exportar imágenes:\n%1").arg(e.what()));
+    }
 }
 
 // ============================================================================
