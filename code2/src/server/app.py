@@ -5,7 +5,6 @@ import io
 
 app = Flask(__name__)
 
-# Cargar el modelo
 net = cv2.dnn.readNetFromONNX("../models/dncnn_grayscale.onnx")
 net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
 net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
@@ -13,7 +12,6 @@ net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
 @app.route('/denoise', methods=['POST'])
 def denoise_image():
     try:
-        # recibir la imagen
         file = request.files['image'].read()
         npimg = np.frombuffer(file, np.uint8)
         img = cv2.imdecode(npimg, cv2.IMREAD_GRAYSCALE)

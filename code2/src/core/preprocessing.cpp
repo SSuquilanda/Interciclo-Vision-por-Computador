@@ -71,7 +71,7 @@ namespace Preprocessing {
         try {
             std::ifstream f(onnxPath.c_str());
             if (!f.good()) {
-                std::cerr << "[Error] Archivo ONNX no encontrado: " << onnxPath << std::endl;
+                std::cerr << "Archivo ONNX no encontrado: " << onnxPath << std::endl;
                 return false;
             }
 
@@ -99,7 +99,7 @@ namespace Preprocessing {
             
             CURL* curl = curl_easy_init();
             if (!curl) {
-                std::cerr << "[ERROR] No se pudo inicializar CURL" << std::endl;
+                std::cerr << "No se pudo inicializar CURL" << std::endl;
                 return noisyImage.clone();
             }
             
@@ -126,7 +126,7 @@ namespace Preprocessing {
             curl_easy_cleanup(curl);
             
             if (res != CURLE_OK) {
-                std::cerr << "[ERROR] Flask request falló: " << curl_easy_strerror(res) << std::endl;
+                std::cerr << "Flask request falló: " << curl_easy_strerror(res) << std::endl;
                 return noisyImage.clone();
             }
             
@@ -135,7 +135,7 @@ namespace Preprocessing {
             cv::Mat denoised = cv::imdecode(responseData, cv::IMREAD_GRAYSCALE);
             
             if (denoised.empty()) {
-                std::cerr << "[ERROR] No se pudo decodificar la respuesta del servidor" << std::endl;
+                std::cerr << "No se pudo decodificar la respuesta del servidor" << std::endl;
                 return noisyImage.clone();
             }
             
@@ -219,22 +219,22 @@ namespace Preprocessing {
     }
 
     cv::Mat DnCNNDenoiser::denoise(const cv::Mat& noisyImage) {
-        // Prioridad 1: Intentar Flask Server
+        // intentar Flask Server
         if (useFlaskServer) {
             std::cout << "[INFO] Intentando denoising via Flask server..." << std::endl;
             cv::Mat result = denoiseViaFlask(noisyImage);
             
-            // Si Flask funcionó, retornar resultado
+            // si Flask funcionó, retornar resultado
             if (!result.empty() && (result.data != noisyImage.data)) {
                 std::cout << "[✓] Denoising exitoso via Flask" << std::endl;
                 return result;
             }
             
-            // Si Flask falló, intentar fallback
+            // si Flask falló, intentar fallback
             std::cerr << "[!] Flask server no disponible, intentando fallback a OpenCV DNN..." << std::endl;
         }
         
-        // Prioridad 2: Fallback a OpenCV DNN local
+        // fallback a OpenCV DNN local
         if (modelLoaded) {
             std::cout << "[INFO] Usando OpenCV DNN local como fallback..." << std::endl;
             cv::Mat result = denoiseViaOpenCV(noisyImage);
@@ -242,7 +242,6 @@ namespace Preprocessing {
             return result;
         }
         
-        // Si nada funciona, retornar imagen original
         std::cerr << "[!] Ni Flask ni OpenCV DNN disponibles, retornando imagen original" << std::endl;
         return noisyImage.clone();
     }

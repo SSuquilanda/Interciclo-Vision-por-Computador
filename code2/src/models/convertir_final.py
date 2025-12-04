@@ -5,7 +5,7 @@ import numpy as np
 import onnx
 from onnx import helper, numpy_helper
 
-# 1. ARQUITECTURA DNCNN (Asegurando compatibilidad con dncnn_25)
+# Arquitectura DnCNN compatible con dncnn_25
 class DnCNN(nn.Module):
     def __init__(self, depth=17, n_channels=64, image_channels=1):
         super(DnCNN, self).__init__()
@@ -35,85 +35,82 @@ if __name__ == '__main__':
     onnx_file = "dncnn_grayscale.onnx"
 
     print("=" * 80)
-    print("   CONVERSIÓN DnCNN → ONNX (OPSET 12)")
+    print("   CONVERSION DnCNN A ONNX (OPSET 12)")
     print("=" * 80)
 
-    # 1. CARGA INTELIGENTE DE PESOS
+    # Verificar existencia del archivo
     if not os.path.exists(pth_file):
-        print("❌ Error: Falta el archivo .pth")
+        print("Error: No se encuentra el archivo .pth")
         exit()
         
-    print("\n1. Cargando pesos...")
+    print("\n1. Cargando pesos del modelo...")
     
-    # Cargar con weights_only=False
+    # Cargar archivo
     loaded = torch.load(pth_file, map_location='cpu', weights_only=False)
     
-    # EXTRAER el state_dict dependiendo del formato
+    # Extraer state_dict según el formato
     if isinstance(loaded, nn.Module):
-        # Si es un modelo completo
-        print("   📦 Formato: Modelo completo (nn.Module)")
+        print("   Formato: Modelo completo")
         state_dict = loaded.state_dict()
     elif isinstance(loaded, dict):
-        # Si es un diccionario
         if 'state_dict' in loaded:
-            print("   📦 Formato: Diccionario con clave 'state_dict'")
+            print("   Formato: Diccionario con clave 'state_dict'")
             state_dict = loaded['state_dict']
         else:
-            print("   📦 Formato: Diccionario directo (state_dict)")
+            print("   Formato: Diccionario directo")
             state_dict = loaded
     else:
-        print(f"   ❌ Formato desconocido: {type(loaded)}")
+        print(f"   Error: Formato desconocido - {type(loaded)}")
         exit()
     
-    print(f"   ✅ {len(state_dict)} parámetros encontrados")
+    print(f"   Parametros encontrados: {len(state_dict)}")
     
-    # Mostrar primeras claves para debug
-    print("\n   📋 Primeras 5 claves:")
+    # Mostrar primeras claves
+    print("\n   Primeras 5 claves:")
     for i, key in enumerate(list(state_dict.keys())[:5]):
         print(f"      {i+1}. {key}")
     
-    # Arreglar claves (quitar module. si existe)
+    # Limpiar nombres de claves
     new_state_dict = {}
     for k, v in state_dict.items():
         name = k.replace('module.', '')
         new_state_dict[name] = v
 
-    # Crear modelo vacío y cargar pesos
+    # Crear modelo y cargar pesos
     model = DnCNN()
     
     try:
         missing, unexpected = model.load_state_dict(new_state_dict, strict=False)
         
         if len(missing) == 0 and len(unexpected) == 0:
-            print("   ✅ Todos los pesos cargados correctamente")
+            print("   Pesos cargados correctamente")
         else:
-            print(f"   ⚠️  Claves faltantes: {len(missing)}")
-            print(f"   ⚠️  Claves extra: {len(unexpected)}")
+            print(f"   Advertencia: {len(missing)} claves faltantes, {len(unexpected)} claves extra")
             if len(missing) > 0:
-                print(f"      Ejemplo faltante: {missing[:3]}")
+                print(f"      Ejemplo: {missing[:3]}")
     except Exception as e:
-        print(f"   ❌ Error al cargar: {e}")
+        print(f"   Error al cargar pesos: {e}")
         exit()
 
     model.eval()
 
-    # 2. PRUEBA EN PYTORCH ANTES DE EXPORTAR
-    print("\n2. 🧪 Probando modelo en PyTorch...")
+    # Prueba con PyTorch
+    print("\n2. Probando modelo en PyTorch...")
     
     test_input = torch.randn(1, 1, 512, 512)
     with torch.no_grad():
         test_output = model(test_input)
     
     diff_pytorch = (test_input - test_output).abs().max().item()
-    print(f"   Diferencia máx PyTorch: {diff_pytorch:.6f}")
+    print(f"   Diferencia maxima: {diff_pytorch:.6f}")
     
     if diff_pytorch < 1e-5:
-        print("   ⚠️  ADVERTENCIA: Modelo devuelve casi identidad en PyTorch")
-        print("   Esto puede indicar pesos mal cargados")
+        print("   Advertencia: El modelo devuelve casi la misma entrada")
+        print("   Posibles pesos mal cargados")
     else:
-        print("   ✅ Modelo funciona en PyTorch")
+        print("   Modelo funciona correctamente")
 
-    # 3. EXPORTAR A OPSET 12
+    # Exportar a ONNX
     print("\n3. Exportando a ONNX (Opset 12)...")
     
     dummy = torch.randn(1, 1, 512, 512)
@@ -129,10 +126,10 @@ if __name__ == '__main__':
         verbose=False
     )
     
-    print("   ✅ Exportado a ONNX")
+    print("   Exportacion completa")
 
-    # 4. PARCHE DE KERNEL
-    print("\n4. Aplicando parche kernel_shape para OpenCV...")
+    # Aplicar parche para OpenCV
+    print("\n4. Aplicando parche kernel_shape...")
     
     m = onnx.load(onnx_file)
     patched = 0
@@ -152,54 +149,42 @@ if __name__ == '__main__':
                             break
     
     onnx.save(m, onnx_file)
-    print(f"   ✅ {patched} capas Conv parcheadas")
+    print(f"   Capas Conv parcheadas: {patched}")
 
-    # 5. VERIFICAR ONNX
+    # Verificar modelo ONNX
     print("\n5. Verificando modelo ONNX...")
     
     try:
         onnx.checker.check_model(m)
         size_mb = os.path.getsize(onnx_file) / (1024 * 1024)
-        print(f"   ✅ Modelo válido")
-        print(f"   📊 Tamaño: {size_mb:.2f} MB")
+        print(f"   Modelo valido")
+        print(f"   Tamaño: {size_mb:.2f} MB")
     except Exception as e:
-        print(f"   ❌ Error en validación: {e}")
+        print(f"   Error en validacion: {e}")
 
-    # 6. PRUEBA CON ONNX RUNTIME
-    print("\n6. 🧪 PRUEBA FINAL con ONNX Runtime...")
+    # Prueba con ONNX Runtime
+    print("\n6. Prueba final con ONNX Runtime...")
     
     try:
         import onnxruntime as ort
         
         sess = ort.InferenceSession(onnx_file, providers=['CPUExecutionProvider'])
         
-        # Generar ruido de prueba
+        # Generar entrada de prueba
         ruido_input = np.random.randn(1, 1, 512, 512).astype(np.float32)
         res = sess.run(None, {'input': ruido_input})[0]
         
         diff_onnx = np.max(np.abs(ruido_input - res))
         
-        print(f"   Diferencia máx ONNX: {diff_onnx:.6f}")
+        print(f"   Diferencia maxima: {diff_onnx:.6f}")
         
         if diff_onnx < 1e-5:
-            print("\n" + "=" * 80)
-            print("   ❌ PROBLEMA CRÍTICO: La red NO modifica la imagen")
-            print("   Posibles causas:")
-            print("   1. El archivo dncnn_25.pth no contiene pesos entrenados")
-            print("   2. Incompatibilidad entre arquitectura y pesos")
-            print("   3. Modelo fue guardado de forma incorrecta")
-            print("=" * 80)
+            print("red no modifica la imagen")
         else:
-            print("\n" + "=" * 80)
-            print("   ✅✅✅ ÉXITO COMPLETO")
-            print(f"   La red SÍ procesa imágenes (diferencia: {diff_onnx:.6f})")
-            print(f"   📂 Archivo listo: {onnx_file}")
-            print("\n   🎯 Siguiente paso:")
-            print(f"      copy {onnx_file} ..\\build\\Release\\models\\")
-            print("=" * 80)
+            print("   CONVERSION EXITOSA")
             
     except ImportError:
-        print("   ⚠️ onnxruntime no instalado, no se puede probar")
-        print("   Ejecuta: pip install onnxruntime")
+        print("   onnxruntime no instalado")
+        print("   Ejecutar: pip install onnxruntime")
     except Exception as e:
-        print(f"   ❌ Error en prueba: {e}")
+        print(f"   Error en prueba: {e}")

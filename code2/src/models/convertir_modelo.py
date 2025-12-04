@@ -2,7 +2,7 @@
 import torch.nn as nn
 import os
 
-# 1. Definir Arquitectura DnCNN-25
+# Definir Arquitectura DnCNN-25
 class DnCNN(nn.Module):
     def __init__(self, depth=17, n_channels=64, image_channels=1):
         super(DnCNN, self).__init__()
@@ -10,17 +10,17 @@ class DnCNN(nn.Module):
         padding = 1
         layers = []
 
-        # Primera capa (Con Bias)
+        # Primera capa con bias
         layers.append(nn.Conv2d(image_channels, n_channels, kernel_size, padding=padding, bias=True))
         layers.append(nn.ReLU(inplace=True))
         
-        # Capas intermedias (Sin Bias, con BN)
+        # Capas intermedias sin bias, con batch normalization
         for _ in range(depth-2):
             layers.append(nn.Conv2d(n_channels, n_channels, kernel_size, padding=padding, bias=False))
             layers.append(nn.BatchNorm2d(n_channels, eps=0.0001, momentum=0.95))
             layers.append(nn.ReLU(inplace=True))
         
-        # Última capa (Sin Bias)
+        # Última capa sin bias
         layers.append(nn.Conv2d(n_channels, image_channels, kernel_size, padding=padding, bias=False))
         self.dncnn = nn.Sequential(*layers)
     
@@ -34,15 +34,15 @@ if __name__ == '__main__':
     onnx_file = "dncnn_grayscale.onnx"
 
     if not os.path.exists(pth_file):
-        print(f"❌ ERROR: Falta {pth_file}")
+        print(f"ERROR: No se encuentra {pth_file}")
         exit()
 
-    print(f"1. Cargando {pth_file} (Desbloqueando seguridad PyTorch 2.6)...")
+    print(f"Cargando {pth_file}...")
     try:
-        # AQUÍ ESTÁ EL ARREGLO DE SEGURIDAD:
+        # Cargar modelo con weights_only=False para compatibilidad
         loaded = torch.load(pth_file, map_location='cpu', weights_only=False)
     except Exception as e:
-        print(f"❌ Error cargando archivo: {e}")
+        print(f"Error al cargar el archivo: {e}")
         exit()
 
     # Extraer diccionario de pesos
@@ -53,47 +53,44 @@ if __name__ == '__main__':
     else:
         state_dict = loaded
 
-    # 2. INTELIGENCIA DE MAPEO DE NOMBRES
-    # El archivo puede tener claves como 'features.0.weight' o '0.weight'
-    # Nuestro modelo espera 'dncnn.0.weight'
-    print("2. Analizando y corrigiendo claves de capas...")
+    # Ajustar nombres de las capas
+    print("Procesando nombres de capas...")
     
     model = DnCNN()
     new_state_dict = {}
     
-    # Imprimir muestra de claves originales para depurar
     claves_originales = list(state_dict.keys())
-    print(f"   Claves en archivo (ejemplo): {claves_originales[:3]}")
+    print(f"Primeras claves encontradas: {claves_originales[:3]}")
 
     for k, v in state_dict.items():
         new_k = k
-        # Quitar prefijos comunes
+        # Eliminar prefijos comunes
         new_k = new_k.replace('module.', '')
         
-        # Si la clave empieza directo con número (ej: '0.weight'), agregar 'dncnn.'
+        # Agregar prefijo dncnn si empieza con número
         if new_k[0].isdigit():
             new_k = 'dncnn.' + new_k
             
         new_state_dict[new_k] = v
 
-    # Cargar y VERIFICAR
+    # Cargar pesos en el modelo
     missing, unexpected = model.load_state_dict(new_state_dict, strict=False)
     
-    print(f"   ✅ Capas cargadas correctamente: {len(state_dict) - len(missing)}")
+    print(f"Capas cargadas: {len(state_dict) - len(missing)}")
     if len(missing) > 0:
-        print(f"   ⚠️ Capas faltantes (esto explica si no ves cambios): {len(missing)}")
-        print(f"      Ejemplo faltante: {missing[:2]}")
+        print(f"Capas faltantes: {len(missing)}")
+        print(f"Ejemplo: {missing[:2]}")
     else:
-        print("   🎉 ¡PERFECTO! Todas las capas coinciden.")
+        print("Todas las capas coinciden correctamente.")
 
     model.eval()
 
-    # 3. Exportar y Parchado Final
-    print("3. Exportando a ONNX...")
+    # Exportar a ONNX
+    print("Exportando a ONNX...")
     dummy = torch.randn(1, 1, 512, 512)
     torch.onnx.export(model, dummy, onnx_file, input_names=['input'], output_names=['output'], opset_version=11)
 
-    print("4. Parchando Kernel Shape...")
+    print("Aplicando correcciones al modelo ONNX...")
     import onnx
     from onnx import helper, numpy_helper
     m = onnx.load(onnx_file)
@@ -107,4 +104,4 @@ if __name__ == '__main__':
                 n.attribute.append(helper.make_attribute('kernel_shape', [arr.shape[2], arr.shape[3]]))
                 c += 1
     onnx.save(m, onnx_file)
-    print(f"✅ Listo. {c} nodos parchados. Archivo generado: {onnx_file}")
+    print(f"Proceso completado. {c} nodos corregidos. Archivo: {onnx_file}")

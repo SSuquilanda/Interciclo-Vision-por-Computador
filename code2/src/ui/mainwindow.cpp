@@ -27,9 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     
     std::string modelPath;
     // PRIORIDAD 1: Configurar Flask Server
-    std::cout << "[INFO] ========================================" << std::endl;
     std::cout << "[INFO] Configurando DnCNN via Flask Server" << std::endl;
-    std::cout << "[INFO] ========================================" << std::endl;
     std::cout << "[INFO] URL: http://localhost:5000/denoise" << std::endl;
     dncnnDenoiser.setFlaskServer("http://localhost:5000/denoise");
     dncnnModelLoaded = true; // Flask está configurado
@@ -42,7 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
     for (const auto& path : possiblePaths) {
         std::cout << "  Probando: " << path << " ... ";
         if (std::filesystem::exists(path)) {
-            std::cout << "✓ ENCONTRADO" << std::endl;
+            std::cout << "ENCONTRADO" << std::endl;
             modelPath = path;
             fileFound = true;
             break;
@@ -72,9 +70,7 @@ MainWindow::~MainWindow() {
     // Qt se encarga de la limpieza de memoria
 }
 
-// ============================================================================
 // CONFIGURACIÓN DE LA INTERFAZ
-// ============================================================================
 
 void MainWindow::setupUI() {
     // Widget central con tabs
@@ -98,9 +94,7 @@ void MainWindow::setupUI() {
     tabWidget->addTab(tabMetrics, "Métricas");
 }
 
-// ============================================================================
 // PESTAÑA 1: I/O DATASET
-// ============================================================================
 
 void MainWindow::setupTabIO() {
     tabIO = new QWidget();
@@ -163,9 +157,7 @@ void MainWindow::setupTabIO() {
     mainLayout->addWidget(splitter);
 }
 
-// ============================================================================
 // SLOTS: PESTAÑA I/O DATASET
-// ============================================================================
 
 void MainWindow::onLoadDataset() {
     QString dirPath = QFileDialog::getExistingDirectory(
@@ -299,9 +291,7 @@ void MainWindow::loadSlice(int index) {
     }
 }
 
-// ============================================================================
 // PESTAÑA 2: PREPROCESAMIENTO
-// ============================================================================
 
 void MainWindow::setupTabPreprocessing() {
     tabPreprocessing = new QWidget();
@@ -513,9 +503,7 @@ void MainWindow::setupTabPreprocessing() {
     mainLayout->addWidget(imagePanel, 1);
 }
 
-// ============================================================================
 // PESTAÑA 3: SEGMENTACIÓN
-// ============================================================================
 
 void MainWindow::setupTabSegmentation() {
     tabSegmentation = new QWidget();
@@ -763,9 +751,7 @@ void MainWindow::setupTabSegmentation() {
     mainLayout->addWidget(imagePanel, 1);
 }
 
-// ============================================================================
 // PESTAÑA 4: MORFOLOGÍA
-// ============================================================================
 
 void MainWindow::setupTabMorphology() {
     tabMorphology = new QWidget();
@@ -898,7 +884,7 @@ void MainWindow::setupTabMorphology() {
             currentSlice.morphologyMask = filled.clone();
             
             updateImageDisplay(labelMorphologyOutput, currentSlice.morphologyMask);
-            logMessage(textMorphologyLog, "✓ Huecos rellenados exitosamente");
+            logMessage(textMorphologyLog, "Huecos rellenados exitosamente");
             
         } catch (const std::exception& e) {
             QMessageBox::critical(this, "Error", QString("Error: %1").arg(e.what()));
@@ -970,9 +956,7 @@ void MainWindow::setupTabMorphology() {
     mainLayout->addWidget(imagePanel, 1);
 }
 
-// ============================================================================
 // PESTAÑA 5: VISUALIZACIÓN
-// ============================================================================
 
 void MainWindow::setupTabVisualization() {
     tabVisualization = new QWidget();
@@ -1093,9 +1077,7 @@ void MainWindow::setupTabVisualization() {
     mainLayout->addWidget(viewerPanel, 1);
 }
 
-// ============================================================================
 // PESTAÑA 6: MÉTRICAS
-// ============================================================================
 
 void MainWindow::setupTabMetrics() {
     tabMetrics = new QWidget();
@@ -1123,7 +1105,7 @@ void MainWindow::setupTabMetrics() {
     );
     connect(btnCalculateMetrics, &QPushButton::clicked, this, &MainWindow::onCalculateMetrics);
     
-    btnLoadGroundTruth = new QPushButton("📋 Cargar Validación (Ground Truth)");
+    btnLoadGroundTruth = new QPushButton("Cargar Validación (Ground Truth)");
     btnLoadGroundTruth->setMinimumHeight(40);
     btnLoadGroundTruth->setStyleSheet(
         "QPushButton { "
@@ -1138,7 +1120,7 @@ void MainWindow::setupTabMetrics() {
     );
     connect(btnLoadGroundTruth, &QPushButton::clicked, this, &MainWindow::onLoadGroundTruthClicked);
     
-    QPushButton* btnExportImages = new QPushButton("💾 Exportar Imágenes");
+    QPushButton* btnExportImages = new QPushButton("Exportar Imágenes");
     btnExportImages->setMinimumHeight(40);
     btnExportImages->setStyleSheet(
         "QPushButton { "
@@ -1236,9 +1218,7 @@ void MainWindow::setupTabMetrics() {
     mainLayout->addStretch();
 }
 
-// ============================================================================
 // SLOTS: PESTAÑA PREPROCESAMIENTO
-// ============================================================================
 
 void MainWindow::onApplyPreprocessing() {
     // Validar que hay datos cargados
@@ -1264,7 +1244,7 @@ void MainWindow::onApplyPreprocessing() {
         if (checkUseDnCNN->isChecked() && dncnnModelLoaded) {
             logMessage(textPreprocessingLog, "[1/6] Aplicando Red Neuronal DnCNN...");
             working = dncnnDenoiser.denoise(working);
-            logMessage(textPreprocessingLog, "   ✓ DnCNN aplicado exitosamente");
+            logMessage(textPreprocessingLog, "   DnCNN aplicado exitosamente");
             filtersApplied++;
         } else if (checkUseDnCNN->isChecked() && !dncnnModelLoaded) {
             logMessage(textPreprocessingLog, "[!] DnCNN no disponible (modelo no cargado)");
@@ -1277,7 +1257,7 @@ void MainWindow::onApplyPreprocessing() {
             
             logMessage(textPreprocessingLog, QString("[2/6] Aplicando Filtro Gaussiano (kernel=%1)...").arg(kernel));
             working = Preprocessing::applyGaussianFilter(working, kernel);
-            logMessage(textPreprocessingLog, "   ✓ Filtro Gaussiano aplicado");
+            logMessage(textPreprocessingLog, "   Filtro Gaussiano aplicado");
             filtersApplied++;
         }
         
@@ -1288,7 +1268,7 @@ void MainWindow::onApplyPreprocessing() {
             
             logMessage(textPreprocessingLog, QString("[3/6] Aplicando Filtro Mediana (kernel=%1)...").arg(kernel));
             working = Preprocessing::applyMedianFilter(working, kernel);
-            logMessage(textPreprocessingLog, "   ✓ Filtro Mediana aplicado");
+            logMessage(textPreprocessingLog, "   Filtro Mediana aplicado");
             filtersApplied++;
         }
         
@@ -1301,7 +1281,7 @@ void MainWindow::onApplyPreprocessing() {
             
             logMessage(textPreprocessingLog, QString("[4/6] Aplicando Filtro Bilateral (d=%1, sigmaColor=%2)...").arg(d).arg(sigmaSpace));
             working = Preprocessing::applyBilateralFilter(working, d, sigmaColor, sigmaSpace);
-            logMessage(textPreprocessingLog, "   ✓ Filtro Bilateral aplicado");
+            logMessage(textPreprocessingLog, "   Filtro Bilateral aplicado");
             filtersApplied++;
         }
         
@@ -1311,7 +1291,7 @@ void MainWindow::onApplyPreprocessing() {
         if (checkUseHistogramEq->isChecked()) {
             logMessage(textPreprocessingLog, "[5/6] Aplicando Ecualización de Histograma...");
             working = Preprocessing::applyHistogramEqualization(working);
-            logMessage(textPreprocessingLog, "   ✓ Ecualización de Histograma aplicada");
+            logMessage(textPreprocessingLog, "   Ecualización de Histograma aplicada");
             filtersApplied++;
         }
         
@@ -1319,7 +1299,7 @@ void MainWindow::onApplyPreprocessing() {
         if (checkUseCLAHE->isChecked()) {
             logMessage(textPreprocessingLog, "[6/6] Aplicando CLAHE (Mejora de Contraste Adaptativo)...");
             working = Preprocessing::applyCLAHE(working);
-            logMessage(textPreprocessingLog, "   ✓ CLAHE aplicado");
+            logMessage(textPreprocessingLog, "   CLAHE aplicado");
             filtersApplied++;
         }
         
@@ -1337,7 +1317,7 @@ void MainWindow::onApplyPreprocessing() {
             logMessage(textPreprocessingLog, "\n=== MÉTRICAS ===");
             logMessage(textPreprocessingLog, QString("PSNR: %1 dB").arg(psnr, 0, 'f', 2));
             logMessage(textPreprocessingLog, QString("SNR: %1 dB").arg(snr, 0, 'f', 2));
-            logMessage(textPreprocessingLog, QString("\n✓ Preprocesamiento completado (%1 filtros aplicados)").arg(filtersApplied));
+            logMessage(textPreprocessingLog, QString("\nPreprocesamiento completado (%1 filtros aplicados)").arg(filtersApplied));
         } else {
             logMessage(textPreprocessingLog, "\n[!] No se seleccionó ningún filtro");
             QMessageBox::information(this, "Sin filtros", "Selecciona al menos un filtro para aplicar.");
@@ -1350,9 +1330,7 @@ void MainWindow::onApplyPreprocessing() {
     }
 }
 
-// ============================================================================
 // SLOTS: PESTAÑA SEGMENTACIÓN
-// ============================================================================
 
 void MainWindow::onSegmentLungs() {
     if (!currentSlice.hasData()) {
@@ -1447,7 +1425,7 @@ void MainWindow::onSegmentLungs() {
         // Actualizar visualización automáticamente
         onUpdateVisualization();
         
-        logMessage(textSegmentationLog, QString("\n✓ Segmentación de pulmones completada (%1 regiones)").arg(lungRegions.size()));
+        logMessage(textSegmentationLog, QString("\nSegmentación de pulmones completada (%1 regiones)").arg(lungRegions.size()));
         
     } catch (const std::exception& e) {
         QString errorMsg = QString("Error en segmentación: %1").arg(e.what());
@@ -1540,7 +1518,7 @@ void MainWindow::onSegmentBones() {
         updateImageDisplay(labelMorphologyInput, currentSlice.mask);
         onUpdateVisualization();
         
-        logMessage(textSegmentationLog, QString("\n✓ Segmentación de huesos completada (%1 regiones)").arg(boneRegions.size()));
+        logMessage(textSegmentationLog, QString("\nSegmentación de huesos completada (%1 regiones)").arg(boneRegions.size()));
         
     } catch (const std::exception& e) {
         QString errorMsg = QString("Error en segmentación: %1").arg(e.what());
@@ -1635,7 +1613,7 @@ void MainWindow::onSegmentAorta() {
         updateImageDisplay(labelMorphologyInput, currentSlice.mask);
         onUpdateVisualization();
         
-        logMessage(textSegmentationLog, QString("\n✓ Segmentación de aorta completada (%1 regiones)").arg(aortaRegions.size()));
+        logMessage(textSegmentationLog, QString("\nSegmentación de aorta completada (%1 regiones)").arg(aortaRegions.size()));
         
     } catch (const std::exception& e) {
         QString errorMsg = QString("Error en segmentación: %1").arg(e.what());
@@ -1655,9 +1633,7 @@ void MainWindow::onClearSegmentation() {
     logMessage(textSegmentationLog, "[INFO] Segmentación limpiada");
 }
 
-// ============================================================================
 // SLOTS: PESTAÑA MORFOLOGÍA
-// ============================================================================
 
 void MainWindow::onApplyMorphology() {
     // Validar que hay máscara de segmentación
@@ -1753,7 +1729,7 @@ void MainWindow::onApplyMorphology() {
             .arg(changePercent > 0 ? "+" : "")
             .arg(changePercent, 0, 'f', 2)
         );
-        logMessage(textMorphologyLog, "\n✓ Operación morfológica completada");
+        logMessage(textMorphologyLog, "\nOperación morfológica completada");
         
     } catch (const std::exception& e) {
         QString errorMsg = QString("Error en morfología: %1").arg(e.what());
@@ -1762,9 +1738,7 @@ void MainWindow::onApplyMorphology() {
     }
 }
 
-// ============================================================================
 // SLOTS: PESTAÑA VISUALIZACIÓN
-// ============================================================================
 
 void MainWindow::onUpdateVisualization() {
     // Validar que hay datos cargados
@@ -1850,9 +1824,7 @@ void MainWindow::onResetVisualization() {
     updateImageDisplay(labelVisualizationImage, visualization);
 }
 
-// ============================================================================
 // SLOTS: PESTAÑA MÉTRICAS
-// ============================================================================
 
 void MainWindow::onCalculateMetrics() {
     if (!currentSlice.hasData()) {
@@ -2208,7 +2180,7 @@ void MainWindow::onLoadGroundTruthClicked() {
     }
     
     // Mostrar mensaje en barra de estado
-    statusBar()->showMessage(QString("✓ Validación completada: IoU = %1").arg(iouText), 5000);
+    statusBar()->showMessage(QString("Validación completada: IoU = %1").arg(iouText), 5000);
     
     // Mensaje de confirmación
     QMessageBox::information(this, "Validación Completada", 
@@ -2253,7 +2225,7 @@ void MainWindow::onExportImages() {
         if (!currentSlice.original8bit.empty()) {
             QString filename = exportDir.filePath(baseName + "_01_original.png");
             if (cv::imwrite(filename.toStdString(), currentSlice.original8bit)) {
-                exportedFiles << "✓ Original";
+                exportedFiles << "Original";
                 exportedCount++;
             }
         }
@@ -2262,7 +2234,7 @@ void MainWindow::onExportImages() {
         if (!currentSlice.preprocessed.empty()) {
             QString filename = exportDir.filePath(baseName + "_02_preprocessed.png");
             if (cv::imwrite(filename.toStdString(), currentSlice.preprocessed)) {
-                exportedFiles << "✓ Preprocesada";
+                exportedFiles << "Preprocesada";
                 exportedCount++;
             }
         }
@@ -2271,7 +2243,7 @@ void MainWindow::onExportImages() {
         if (!currentSlice.mask.empty()) {
             QString filename = exportDir.filePath(baseName + "_03_segmentation_mask.png");
             if (cv::imwrite(filename.toStdString(), currentSlice.mask)) {
-                exportedFiles << "✓ Máscara de Segmentación";
+                exportedFiles << "Máscara de Segmentación";
                 exportedCount++;
             }
             
@@ -2295,7 +2267,7 @@ void MainWindow::onExportImages() {
                 
                 QString filenameVis = exportDir.filePath(baseName + "_04_segmentation_overlay.png");
                 if (cv::imwrite(filenameVis.toStdString(), visualization)) {
-                    exportedFiles << "✓ Segmentación Visualizada";
+                    exportedFiles << "Segmentación Visualizada";
                     exportedCount++;
                 }
             }
@@ -2305,7 +2277,7 @@ void MainWindow::onExportImages() {
         if (!currentSlice.morphologyMask.empty()) {
             QString filename = exportDir.filePath(baseName + "_05_morphology_mask.png");
             if (cv::imwrite(filename.toStdString(), currentSlice.morphologyMask)) {
-                exportedFiles << "✓ Máscara Morfológica";
+                exportedFiles << "Máscara Morfológica";
                 exportedCount++;
             }
         }
@@ -2335,7 +2307,7 @@ void MainWindow::onExportImages() {
                 
                 QString filenameVis = exportDir.filePath(baseName + "_06_final_visualization.png");
                 if (cv::imwrite(filenameVis.toStdString(), finalVisualization)) {
-                    exportedFiles << "✓ Visualización Final";
+                    exportedFiles << "Visualización Final";
                     exportedCount++;
                 }
             }
@@ -2345,14 +2317,14 @@ void MainWindow::onExportImages() {
         if (!labelHistogram->pixmap().isNull()) {
             QString filename = exportDir.filePath(baseName + "_07_histogram.png");
             if (labelHistogram->pixmap().save(filename)) {
-                exportedFiles << "✓ Histograma";
+                exportedFiles << "Histograma";
                 exportedCount++;
             }
         }
         
         // Mensaje de confirmación
         if (exportedCount > 0) {
-            QString message = QString("✓ Exportación completada exitosamente\n\n"
+            QString message = QString("Exportación completada exitosamente\n\n"
                                     "Carpeta de destino:\n%1\n\n"
                                     "Imágenes exportadas (%2):\n%3")
                 .arg(dirPath)
@@ -2360,7 +2332,7 @@ void MainWindow::onExportImages() {
                 .arg(exportedFiles.join("\n"));
             
             QMessageBox::information(this, "Exportación Exitosa", message);
-            statusBar()->showMessage(QString("✓ %1 imágenes exportadas a %2")
+            statusBar()->showMessage(QString("%1 imágenes exportadas a %2")
                 .arg(exportedCount).arg(dirPath), 5000);
         } else {
             QMessageBox::warning(this, "Sin imágenes", 
@@ -2374,9 +2346,7 @@ void MainWindow::onExportImages() {
     }
 }
 
-// ============================================================================
 // MÉTODOS AUXILIARES
-// ============================================================================
 
 void MainWindow::updateImageDisplay(QLabel* label, const cv::Mat& image) {
     if (image.empty()) {

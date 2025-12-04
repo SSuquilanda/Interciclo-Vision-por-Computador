@@ -35,6 +35,7 @@ MedicalApp: \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/libgobject-2.0.so \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/libglib-2.0.so \
   /usr/lib/libcurl.so \
+  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/libhdf5.so \
   /usr/lib/libGLX.so \
   /usr/lib/libOpenGL.so \
   /usr/lib/libQt6Core.so.6.10.1 \
@@ -190,6 +191,7 @@ MedicalApp: \
   /usr/lib/libzstd.so.1 \
   /usr/lib32/libbrotlidec.so.1 \
   /usr/lib/libbrotlidec.so.1 \
+  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/../lib/libsz.so.2 \
   /usr/lib32/libGLdispatch.so.0 \
   /usr/lib/libGLdispatch.so.0 \
   /usr/lib/libicui18n.so.78 \
@@ -200,7 +202,6 @@ MedicalApp: \
   /usr/lib/libpcre2-16.so.0 \
   /usr/lib/libgstapp-1.0.so.0 \
   /usr/lib/libgstpbutils-1.0.so.0 \
-  /usr/lib/libhdf5.so.310 \
   /home/felipep/anaconda3/lib/libglog.so.0 \
   /usr/lib/libgtk-3.so.0 \
   /usr/lib/libgdk-3.so.0 \
@@ -254,7 +255,6 @@ MedicalApp: \
   /usr/lib32/libgomp.so.1 \
   /usr/lib/libgomp.so.1 \
   /usr/lib/libgsttag-1.0.so.0 \
-  /usr/lib/../lib/libsz.so.2 \
   /usr/lib32/libpthread.so.0 \
   /usr/lib/libpthread.so.0 \
   /home/felipep/anaconda3/lib/./libgflags.so.2.2 \
@@ -451,6 +451,8 @@ CMakeFiles/MedicalApp.dir/src/ui/mainwindow.cpp.o:
 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/libglib-2.0.so:
 
 /usr/lib/libcurl.so:
+
+/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/libhdf5.so:
 
 /usr/lib/libGLX.so:
 
@@ -762,6 +764,8 @@ CMakeFiles/MedicalApp.dir/src/ui/mainwindow.cpp.o:
 
 /usr/lib/libbrotlidec.so.1:
 
+/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/../lib/libsz.so.2:
+
 /usr/lib32/libGLdispatch.so.0:
 
 /usr/lib/libGLdispatch.so.0:
@@ -781,8 +785,6 @@ CMakeFiles/MedicalApp.dir/src/ui/mainwindow.cpp.o:
 /usr/lib/libgstapp-1.0.so.0:
 
 /usr/lib/libgstpbutils-1.0.so.0:
-
-/usr/lib/libhdf5.so.310:
 
 /home/felipep/anaconda3/lib/libglog.so.0:
 
@@ -889,8 +891,6 @@ CMakeFiles/MedicalApp.dir/src/ui/mainwindow.cpp.o:
 /usr/lib/libgomp.so.1:
 
 /usr/lib/libgsttag-1.0.so.0:
-
-/usr/lib/../lib/libsz.so.2:
 
 /usr/lib32/libpthread.so.0:
 

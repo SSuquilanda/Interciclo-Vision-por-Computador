@@ -87,6 +87,7 @@ if(UNIX AND NOT APPLE)
         ${ITK_LIBRARIES}
         ${GST_LIBRARIES}
         CURL::libcurl
+        hdf5
     )
 else()
     target_link_libraries(MedicalApp PRIVATE
